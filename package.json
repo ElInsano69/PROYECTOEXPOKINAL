@@ -4,7 +4,7 @@
   "description": "",
   "main": "mi-backend/index.js",
   "scripts": {
-    "start": "node mi-backend/index.js",
+    "start": "node mi-backend/index.js", 
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
