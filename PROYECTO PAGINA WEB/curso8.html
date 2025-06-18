@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Curso 1 | IT Essentials</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { margin: 0; font-family: Arial, sans-serif; min-height: 100vh; background: linear-gradient(135deg, #e0e7ef 0%, #f8fafc 100%);}
+        .sidebar { width: 0; min-height: 100vh; position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none;}
+        .menu-icon { margin-top: 22px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; z-index: 201; position: fixed; left: 16px; top: 22px; pointer-events: auto;}
+        .bar { width: 28px; height: 4px; background: #fff; border-radius: 2px; transition: background 0.2s;}
+        .menu-icon:hover .bar { background: #ffcc00;}
+        .menu-list { position: fixed; left: 0; top: 0; height: 100vh; width: 220px; background: linear-gradient(135deg, #002147 85%, #003366 100%); box-shadow: 2px 0 16px rgba(0,0,0,0.18); display: flex; flex-direction: column; align-items: flex-start; padding-top: 80px; padding-bottom: 20px; gap: 8px; border-top-right-radius: 18px; border-bottom-right-radius: 18px; transform: translateX(-100%); transition: transform 0.3s cubic-bezier(.77,0,.18,1); z-index: 300; pointer-events: none;}
+        .menu-list.show { transform: translateX(0); pointer-events: auto;}
+        .menu-list a { background: none; border: none; color: #fff; padding: 12px 32px 12px 24px; text-align: left; width: 100%; font-size: 1.1em; cursor: pointer; border-radius: 8px; display: flex; align-items: center; gap: 10px; text-decoration: none; transition: background 0.2s, color 0.2s, transform 0.15s;}
+        .menu-list a:hover { background: #ffcc00; color: #002147; transform: translateX(6px) scale(1.04);}
+        .menu-list .icon { font-size: 1.2em; margin-right: 6px;}
+        .main-content { width: 100%; min-height: 100vh; }
+        header { background: #002147; color: white; padding: 20px 0 20px 0; display: flex; align-items: center; justify-content: center; gap: 16px; position: relative; z-index: 5; width: 100vw; left: 0;}
+        header img { height: 60px;}
+        header span { font-size: 2em; font-weight: bold; letter-spacing: 2px;}
+        .curso-content { margin: 40px auto 0 auto; max-width: 600px; background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.10); padding: 32px 24px; text-align: center;}
+        .curso-content h2 { color: #002147; margin: 0 0 16px 0; font-size: 2em; font-weight: bold; letter-spacing: 1px;}
+        .curso-content p { color: #222; font-size: 1.1em;}
+        @media (max-width: 600px) {
+            header { flex-direction: column; gap: 8px; padding: 16px 0;}
+            header img { height: 40px;}
+            header span { font-size: 1.2em;}
+            .curso-content { max-width: 98vw; padding: 16px 2vw;}
+            .menu-list { width: 80vw; min-width: 140px;}
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar" id="sidebar-section">
+        <div class="menu-icon" onclick="toggleMenu()">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+        </div>
+        <nav id="menu-list" class="menu-list">
+            <a href="index.html"><span class="icon">🏠</span>Inicio</a>
+            <a href="curso1.html"><span class="icon">📘</span>Curso 1</a>
+            <a href="curso2.html"><span class="icon">📗</span>Curso 2</a>
+            <a href="curso3.html"><span class="icon">📙</span>Curso 3</a>
+            <a href="curso4.html"><span class="icon">📕</span>Curso 4</a>
+            <a href="curso5.html"><span class="icon">💻</span>Curso 5</a>
+            <a href="curso6.html"><span class="icon">🖥️</span>Curso 6</a>
+            <a href="curso7.html"><span class="icon">📝</span>Curso 7</a>
+            <a href="curso8.html"><span class="icon">🔧</span>Curso 8</a>
+            <a href="curso9.html"><span class="icon">🔌</span>Curso 9</a>
+            <a href="curso10.html"><span class="icon">🔒</span>Curso 10</a>
+        </nav>
+    </div>
+    <div class="main-content">
+        <header>
+            <img src="img/kinal-logo-2.png" alt="Logo Kinal">
+            <span>FUNDACION KINAL</span>
+        </header>
+        <section class="curso-content">
+            <h2>Curso 1</h2>
+            <p>
+                Aquí va el contenido del curso 1.<br>
+                Este diseño es responsive y se adapta a celulares.
+            </p>
+        </section>
+    </div>
+    <script>
+        function toggleMenu() {
+            const menu = document.getElementById('menu-list');
+            menu.classList.toggle('show');
+        }
+        document.addEventListener('click', function(e) {
+            const menu = document.getElementById('menu-list');
+            const icon = document.querySelector('.menu-icon');
+            if (e.target.closest('.menu-list a')) return;
+            if (!menu.contains(e.target) && !icon.contains(e.target)) {
+                menu.classList.remove('show');
+            }
+        });
+    </script>
+</body>
+</html>
