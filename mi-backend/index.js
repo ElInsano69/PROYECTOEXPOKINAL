@@ -139,6 +139,7 @@ app.get('/api/usuarios', async (req, res) => {
 
 // ====================================================================
 // IMPORTANTE: Ruta para manejar cualquier otra solicitud (para servir index.html)
+// Esta es la ruta de respaldo para tu frontend SPA
 // ====================================================================
 app.get('*', (req, res) => {
     // Asegura que index.html se sirva desde la carpeta 'PROYECTO PAGINA WEB'
