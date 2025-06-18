@@ -61,10 +61,14 @@ app.use(cors()); // Permite solicitudes de otros orígenes (necesario si tu fron
 app.use(express.json()); // Permite a Express parsear cuerpos de solicitud JSON
 app.use(express.urlencoded({ extended: true })); // Para formularios URL-encoded
 
-// ====================================================================
-// Novedad: Sirve archivos estáticos del frontend desde 'PROYECTO PAGINA WEB'
-// ====================================================================
-app.use(express.static(path.join(__dirname, 'PROYECTO PAGINA WEB')));
+// Servir archivos estáticos del frontend
+// Render asume que si no hay rutas explícitas, el directorio público es la raíz
+// Si tu index.html y otros archivos de frontend están directamente en la carpeta raíz
+app.use(express.static(path.join(__dirname))); // Asegúrate que __dirname apunta a la raíz donde está index.html
+// Si tu frontend está en una subcarpeta llamada 'public' o 'frontend'
+// app.use(express.static(path.join(__dirname, 'public')));
+// app.use(express.static(path.join(__dirname, 'frontend')));
+
 
 // RUTAS DE LA API
 
@@ -134,13 +138,10 @@ app.get('/api/usuarios', async (req, res) => {
     }
 });
 
-// ====================================================================
-// Novedad: Ruta para manejar cualquier otra solicitud (ej. para servir index.html en cualquier ruta no API)
-// Esto es importante para aplicaciones de una sola página (SPA) que tienen routing en el frontend.
-// Siempre devuelve el index.html principal de tu frontend.
-// ====================================================================
+// Ruta para manejar cualquier otra solicitud (ej. para servir index.html en cualquier ruta no API)
+// Esto es importante para aplicaciones de una sola página (SPA)
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'PROYECTO PAGINA WEB', 'index.html'));
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 
