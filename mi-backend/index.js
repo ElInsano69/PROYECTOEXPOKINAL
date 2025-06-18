@@ -63,10 +63,11 @@ app.use(express.urlencoded({ extended: true })); // Para formularios URL-encoded
 
 // ====================================================================
 // IMPORTANTE: Ruta para la carpeta del frontend
+// Ahora apunta a la carpeta 'proyecto' (todo en minúsculas)
 // ====================================================================
-const frontendPath = path.join(__dirname, 'proyecto'); // ¡Aquí el cambio!
+const frontendPath = path.join(__dirname, 'proyecto'); // <= ¡Corregido a 'proyecto'!
 
-
+// Sirve archivos estáticos desde la carpeta 'proyecto'
 app.use(express.static(frontendPath));
 
 // RUTAS DE LA API
@@ -142,7 +143,7 @@ app.get('/api/usuarios', async (req, res) => {
 // Esta es la ruta de respaldo para tu frontend SPA
 // ====================================================================
 app.get('*', (req, res) => {
-    // Asegura que index.html se sirva desde la carpeta 'PROYECTO PAGINA WEB'
+    // Asegura que index.html se sirva desde la carpeta 'proyecto'
     res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
