@@ -64,9 +64,9 @@ app.use(express.urlencoded({ extended: true })); // Para formularios URL-encoded
 // ====================================================================
 // IMPORTANTE: Ruta para la carpeta del frontend
 // ====================================================================
-const frontendPath = path.join(__dirname, 'PROYECTO PAGINA WEB');
+const frontendPath = path.join(__dirname, 'proyecto'); // ¡Aquí el cambio!
 
-// Sirve archivos estáticos desde la carpeta 'PROYECTO PAGINA WEB'
+
 app.use(express.static(frontendPath));
 
 // RUTAS DE LA API
