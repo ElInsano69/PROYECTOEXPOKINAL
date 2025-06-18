@@ -67,7 +67,6 @@ app.post('/register', async (req, res) => {
         console.error('Error al registrar usuario:', error);
         res.status(500).json({ message: 'Error interno del servidor.' });
     }
-    // Importante: No uses res.redirect aquí para APIs
 });
 
 // Ruta de login de usuario
