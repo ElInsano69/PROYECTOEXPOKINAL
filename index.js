@@ -1,151 +1,119 @@
-// Importar módulos necesarios
 const express = require('express');
-const { Pool } = require('pg'); // Para interactuar con PostgreSQL
-const bcrypt = require('bcrypt'); // Para hashear contraseñas
-const path = require('path'); // Para manejar rutas de archivos estáticos
-const cors = require('cors'); // Para Cross-Origin Resource Sharing (si es necesario)
+const bodyParser = require('body-parser');
+const path = require('path');
+const { Pool } = require('pg'); // Importa Pool de 'pg'
 
 const app = express();
-const PORT = process.env.PORT || 10000; // Render asigna el puerto en process.env.PORT, si no, usa 10000
+const port = process.env.PORT || 10000; // Usa el puerto de Render o 10000
 
-// Configuración de la base de datos usando DATABASE_URL de Render
+// Configuración de la conexión a la base de datos PostgreSQL
+// Render inyecta la DATABASE_URL en el entorno
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: {
-        rejectUnauthorized: false // NECESARIO para conexiones SSL en Render
+        rejectUnauthorized: false // Importante para conexiones SSL en Render
     }
 });
 
-// Función para inicializar la base de datos (crear tabla si no existe)
-async function initializeDatabase() {
-    try {
-        await pool.connect(); // Intentar conectar para verificar
-        console.log('Conectado a la base de datos PostgreSQL.');
-
-        const createTableQuery = `
-            CREATE TABLE IF NOT EXISTS usuarios (
-                id SERIAL PRIMARY KEY,
-                nombre VARCHAR(100) NOT NULL,
-                apellido VARCHAR(100) NOT NULL,
-                email VARCHAR(100) UNIQUE NOT NULL,
-                clave VARCHAR(255) NOT NULL,
-                fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        `;
-        await pool.query(createTableQuery);
-        console.log('Tabla "usuarios" verificada o creada.');
-
-        // Insertar un usuario de ejemplo si no existe
-        const checkAdminQuery = `SELECT * FROM usuarios WHERE email = 'admin@admin.com'`;
-        const adminResult = await pool.query(checkAdminQuery);
-        if (adminResult.rows.length === 0) {
-            const hashedPassword = await bcrypt.hash('admin123', 10); // Contraseña de ejemplo
-            const insertAdminQuery = `
-                INSERT INTO usuarios (nombre, apellido, email, clave)
-                VALUES ($1, $2, $3, $4) RETURNING id;
-            `;
-            const newAdmin = await pool.query(insertAdminQuery, ['Admin', 'User', 'admin@admin.com', hashedPassword]);
-            console.log(`Usuario de ejemplo (admin@admin.com) insertado. ID: ${newAdmin.rows[0].id}`);
-        }
-
-    } catch (err) {
-        console.error('Error al inicializar la base de datos:', err);
+// Conectar a la base de datos
+pool.connect((err, client, done) => {
+    if (err) {
+        console.error('Error al conectar a la base de datos:', err);
+        return;
     }
-}
+    console.log('Conectado a la base de datos PostgreSQL.');
 
-// Iniciar la inicialización de la base de datos
-initializeDatabase();
-
-// Middlewares
-app.use(cors()); // Permite solicitudes de otros orígenes (necesario si tu frontend está en un dominio diferente)
-app.use(express.json()); // Permite a Express parsear cuerpos de solicitud JSON
-app.use(express.urlencoded({ extended: true })); // Para formularios URL-encoded
-
-// Servir archivos estáticos del frontend
-// Render asume que si no hay rutas explícitas, el directorio público es la raíz
-// Si tu index.html y otros archivos de frontend están directamente en la carpeta raíz
-app.use(express.static(path.join(__dirname))); // Asegúrate que __dirname apunta a la raíz donde está index.html
-// Si tu frontend está en una subcarpeta llamada 'public' o 'frontend'
-// app.use(express.static(path.join(__dirname, 'public')));
-// app.use(express.static(path.join(__dirname, 'frontend')));
-
-
-// RUTAS DE LA API
-
-// Ruta de registro de usuarios
-app.post('/api/usuarios', async (req, res) => {
-    const { nombre, apellido, email, clave } = req.body;
-
-    if (!nombre || !apellido || !email || !clave) {
-        return res.status(400).json({ error: 'Todos los campos son obligatorios.' });
-    }
-
-    try {
-        const hashedPassword = await bcrypt.hash(clave, 10); // Hashear la contraseña
-
-        const result = await pool.query(
-            'INSERT INTO usuarios (nombre, apellido, email, clave) VALUES ($1, $2, $3, $4) RETURNING id, email',
-            [nombre, apellido, email, hashedPassword]
+    // Crear tabla de usuarios si no existe
+    client.query(`
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(255) UNIQUE NOT NULL,
+            password VARCHAR(255) NOT NULL
         );
-        res.status(201).json({ message: 'Usuario registrado con éxito', userId: result.rows[0].id, email: result.rows[0].email });
-    } catch (err) {
-        if (err.code === '23505') { // Código de error de PostgreSQL para violación de restricción UNIQUE (email ya existe)
-            return res.status(409).json({ error: 'El email ya está registrado.' });
+    `, (err, res) => {
+        done(); // Libera el cliente a la pool
+        if (err) {
+            console.error('Error al verificar o crear la tabla "usuarios":', err);
+            return;
         }
-        console.error('Error al registrar usuario:', err);
-        res.status(500).json({ error: 'Error interno del servidor al registrar el usuario.' });
-    }
+        console.log('Tabla "usuarios" verificada o creada.');
+    });
 });
 
-// Ruta de inicio de sesión
-app.post('/api/login', async (req, res) => {
-    const { email, clave } = req.body;
+// Middleware para parsear el cuerpo de las solicitudes JSON
+app.use(bodyParser.json());
 
-    if (!email || !clave) {
-        return res.status(400).json({ error: 'Email y contraseña son obligatorios.' });
+// ====================================================================
+// Rutas API para el Backend
+// ====================================================================
+
+// Ruta de registro de usuario
+app.post('/register', async (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ message: 'Nombre de usuario y contraseña son requeridos.' });
     }
 
     try {
-        const result = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
-        const user = result.rows[0];
-
-        if (!user) {
-            return res.status(401).json({ error: 'Credenciales inválidas.' });
+        const result = await pool.query(
+            'INSERT INTO usuarios (username, password) VALUES ($1, $2) RETURNING id',
+            [username, password]
+        );
+        res.status(201).json({ message: 'Usuario registrado exitosamente', userId: result.rows[0].id });
+    } catch (error) {
+        if (error.code === '23505') { // Código de error para restricción de unicidad (duplicate key)
+            return res.status(409).json({ message: 'El nombre de usuario ya existe.' });
         }
-
-        const isMatch = await bcrypt.compare(clave, user.clave);
-        if (!isMatch) {
-            return res.status(401).json({ error: 'Credenciales inválidas.' });
-        }
-
-        // Si las credenciales son correctas
-        res.status(200).json({ message: 'Inicio de sesión exitoso', userId: user.id, email: user.email });
-
-    } catch (err) {
-        console.error('Error al iniciar sesión:', err);
-        res.status(500).json({ error: 'Error interno del servidor al iniciar sesión.' });
+        console.error('Error al registrar usuario:', error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
     }
 });
 
-// Ruta para obtener todos los usuarios (ejemplo)
-app.get('/api/usuarios', async (req, res) => {
+// Ruta de login de usuario
+app.post('/login', async (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ message: 'Nombre de usuario y contraseña son requeridos.' });
+    }
+
     try {
-        const result = await pool.query('SELECT id, nombre, apellido, email FROM usuarios');
-        res.status(200).json(result.rows);
-    } catch (err) {
-        console.error('Error al obtener usuarios:', err);
-        res.status(500).json({ error: 'Error interno del servidor al obtener usuarios.' });
+        const result = await pool.query(
+            'SELECT * FROM usuarios WHERE username = $1 AND password = $2',
+            [username, password]
+        );
+
+        if (result.rows.length > 0) {
+            res.status(200).json({ message: 'Login exitoso', user: result.rows[0] });
+        } else {
+            res.status(401).json({ message: 'Credenciales inválidas.' });
+        }
+    } catch (error) {
+        console.error('Error al intentar login:', error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
     }
 });
 
-// Ruta para manejar cualquier otra solicitud (ej. para servir index.html en cualquier ruta no API)
-// Esto es importante para aplicaciones de una sola página (SPA)
+// ====================================================================
+// Servir archivos estáticos del Frontend
+// ====================================================================
+
+// Ruta para servir los archivos estáticos de tu frontend desde la carpeta 'proyecto'
+// Asegura que Render los encuentre correctamente.
+// process.cwd() apunta al directorio de trabajo actual en Render (/opt/render/project/src/)
+app.use(express.static(path.join(process.cwd(), 'proyecto')));
+
+
+// ====================================================================
+// IMPORTANTE: Ruta para manejar cualquier otra solicitud (para servir index.html como fallback)
+// Esta es la ruta de respaldo para tu frontend SPA
+// ====================================================================
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    // Si la solicitud no coincide con ninguna ruta API ni archivo estático,
+    // sirve el index.html principal de tu aplicación frontend.
+    res.sendFile(path.join(process.cwd(), 'proyecto', 'index.html'));
 });
-
 
 // Iniciar el servidor
-app.listen(PORT, () => {
-    console.log(`Servidor Node.js corriendo en el puerto ${PORT}`);
+app.listen(port, () => {
+    console.log(`Servidor Node.js corriendo en el puerto ${port}`);
 });
