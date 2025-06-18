@@ -1,28 +1,33 @@
 const express = require('express');
-const { Pool } = require('pg');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const path = require('path');
+const { Pool } = require('pg'); // Importa Pool de 'pg'
+const bcrypt = require('bcryptjs'); // Para encriptar contraseñas
+const jwt = require('jsonwebtoken'); // Para tokens JWT
+const path = require('path'); // Para manejar rutas de archivos
 const app = express();
 
-const PORT = process.env.PORT || 10000;
+// Configuración del puerto para Render
+// Render inyecta el puerto en process.env.PORT
+const PORT = process.env.PORT || 10000; // Usa 10000 como fallback para desarrollo local
 
+// Configuración de la base de datos PostgreSQL para Render
+// Render inyecta la URL de conexión a la DB en process.env.DATABASE_URL
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: {
-        rejectUnauthorized: false
+        rejectUnauthorized: false // Necesario para conexiones SSL en Render (ajusta según la configuración de tu DB)
     }
 });
 
+// Middleware para parsear JSON en las solicitudes
 app.use(express.json());
 
 // =========================================================
 // RUTAS DE LA API (¡COLOCA ESTO ANTES DE SERVIR ARCHIVOS ESTÁTICOS!)
 // =========================================================
 
-// Ruta de Registro de Usuario (CORREGIDA: Ahora es '/register' para coincidir con el frontend)
+// Ruta de Registro de Usuario
+// El frontend envía { nombre, apellido, email, password }
 app.post('/register', async (req, res) => {
-    // El frontend ahora envía { nombre, apellido, email, password }
     const { nombre, apellido, email, password } = req.body;
 
     if (!nombre || !apellido || !email || !password) {
@@ -30,13 +35,16 @@ app.post('/register', async (req, res) => {
     }
 
     try {
+        // Verificar si el email ya existe
         const usuarioExistente = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
         if (usuarioExistente.rows.length > 0) {
             return res.status(409).json({ mensaje: 'El email ya está registrado.' });
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10);
+        // Encriptar la contraseña
+        const hashedPassword = await bcrypt.hash(password, 10); // 10 es el costo del salt
 
+        // Insertar el nuevo usuario en la base de datos
         const resultado = await pool.query(
             'INSERT INTO usuarios (nombre, apellido, email, password) VALUES ($1, $2, $3, $4) RETURNING id, nombre, apellido, email',
             [nombre, apellido, email, hashedPassword]
@@ -50,16 +58,17 @@ app.post('/register', async (req, res) => {
     }
 });
 
-// Ruta de Inicio de Sesión de Usuario (CORREGIDA: Ahora espera 'username' como el email)
+// Ruta de Inicio de Sesión de Usuario
+// El frontend envía { username: email, password: clave }
 app.post('/login', async (req, res) => {
-    // El frontend envía { username: email, password: clave }
-    const { username, password } = req.body;
+    const { username, password } = req.body; // Se espera 'username' que es el email
 
     if (!username || !password) {
         return res.status(400).json({ mensaje: 'El email y la contraseña son obligatorios.' });
     }
 
     try {
+        // Buscar el usuario por email (usando 'username' recibido)
         const usuarioResultado = await pool.query('SELECT * FROM usuarios WHERE email = $1', [username]);
         const usuario = usuarioResultado.rows[0];
 
@@ -67,18 +76,21 @@ app.post('/login', async (req, res) => {
             return res.status(401).json({ mensaje: 'Credenciales inválidas.' });
         }
 
+        // Comparar la contraseña ingresada con la contraseña hasheada
         const passwordValido = await bcrypt.compare(password, usuario.password);
 
         if (!passwordValido) {
             return res.status(401).json({ mensaje: 'Credenciales inválidas.' });
         }
 
+        // Generar un token JWT (usar una clave secreta fuerte y en una variable de entorno)
         const token = jwt.sign(
             { id: usuario.id, email: usuario.email },
-            process.env.JWT_SECRET || 'mi_clave_secreta_super_segura',
-            { expiresIn: '1h' }
+            process.env.JWT_SECRET || 'mi_clave_secreta_super_segura', // Usar variable de entorno, fallback para desarrollo
+            { expiresIn: '1h' } // El token expira en 1 hora
         );
 
+        // Devolver el usuario con todos sus datos (id, nombre, apellido, email)
         res.status(200).json({
             mensaje: 'Inicio de sesión exitoso',
             token,
@@ -99,6 +111,7 @@ app.post('/login', async (req, res) => {
 // NUEVA RUTA: Obtener todos los usuarios (para la tabla de admin)
 app.get('/usuarios', async (req, res) => {
     try {
+        // Selecciona id, nombre, apellido y email de la tabla usuarios
         const resultado = await pool.query('SELECT id, nombre, apellido, email FROM usuarios ORDER BY id ASC');
         res.status(200).json(resultado.rows);
     } catch (error) {
@@ -113,14 +126,19 @@ app.get('/usuarios', async (req, res) => {
 // =========================================================
 
 // Servir archivos estáticos desde la carpeta 'proyecto'
+// Esto permite que el navegador solicite archivos como css/style.css, img/logo.png, etc.
 app.use(express.static(path.join(__dirname, 'proyecto')));
 
 // Ruta principal para servir el index.html
+// Cuando alguien accede a la URL base de tu aplicación (ej. https://tuapp.onrender.com/),
+// se le enviará este archivo.
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'proyecto', 'index.html'));
 });
 
 // Opcional: Ruta catch-all para Single Page Applications (SPA)
+// Esto asegura que cualquier ruta no definida por la API devuelva el index.html,
+// permitiendo que tu frontend maneje el enrutamiento del lado del cliente.
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'proyecto', 'index.html'));
 });
@@ -130,9 +148,14 @@ app.get('*', (req, res) => {
 // INICIALIZACIÓN DEL SERVIDOR
 // =========================================================
 
+// Conectar a la base de datos y crear la tabla si no existe
 pool.connect()
-    .then(() => {
-        console.log('Conectado a la base de datos PostgreSQL.');
+    .then(() => { //
+        console.log('Conectado a la base de datos PostgreSQL.'); //
+        // Crear la tabla 'usuarios' si no existe.
+        // Si la tabla ya existe de una versión anterior SIN 'nombre' y 'apellido',
+        // ESTA PARTE NO AGREGARÁ LAS COLUMNAS. Necesitas ALTER TABLE manualmente
+        // o borrar la tabla y permitir que se recree aquí.
         return pool.query(`
             CREATE TABLE IF NOT EXISTS usuarios (
                 id SERIAL PRIMARY KEY,
@@ -144,14 +167,15 @@ pool.connect()
             );
         `);
     })
-    .then(() => {
-        console.log('Tabla "usuarios" verificada o creada.');
+    .then(() => { //
+        console.log('Tabla "usuarios" verificada o creada.'); //
+        // Iniciar el servidor Express después de la conexión a la DB
         app.listen(PORT, () => {
-            console.log(`Servidor Node.js corriendo en el puerto ${PORT}`);
-            console.log(`Available at your primary URL ${process.env.RENDER_EXTERNAL_HOSTNAME ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}` : `http://localhost:${PORT}`}`);
+            console.log(`Servidor Node.js corriendo en el puerto ${PORT}`); //
+            console.log(`Available at your primary URL ${process.env.RENDER_EXTERNAL_HOSTNAME ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}` : `http://localhost:${PORT}`}`); //
         });
-    })
-    .catch(err => {
-        console.error('Error al conectar o inicializar la base de datos:', err);
-        process.exit(1);
-    });
+    }) //
+    .catch(err => { //
+        console.error('Error al conectar o inicializar la base de datos:', err); //
+        process.exit(1); // Salir si hay un error crítico al iniciar la DB
+    }); //
