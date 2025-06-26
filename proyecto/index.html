@@ -312,7 +312,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    </tbody>
+                </tbody>
             </table>
         </section>
     </div>
@@ -347,13 +347,16 @@
 
         // Utilidades
         function getInitials(nombre, apellido) {
-            if (!nombre || !apellido) return "";
-            return (nombre[0] + apellido[0]).toUpperCase();
+            if (!nombre && !apellido) return "?"; // Fallback si ambos son nulos/vacíos
+            let initials = "";
+            if (nombre) initials += nombre[0];
+            if (apellido) initials += apellido[0];
+            return initials.toUpperCase();
         }
 
-        function renderAvatar(containerId, nombre, apellido, foto, size = 44, clickHandler = null) {
+        function renderAvatar(containerId, nombre, apellido, foto, size, clickHandler = null) {
             const container = document.getElementById(containerId);
-            container.innerHTML = '';
+            container.innerHTML = ''; // Limpiar contenido existente
             if (foto) {
                 const img = document.createElement('img');
                 img.src = foto;
@@ -385,8 +388,8 @@
             const apellido = localStorage.getItem('apellido_actual') || '';
             const foto = localStorage.getItem('foto_actual') || '';
             renderAvatar('perfil-avatar-container', nombre, apellido, foto, window.innerWidth < 600 ? 44 : 60);
-            document.getElementById('perfil-nombre').textContent = "Nombre: " + nombre;
-            document.getElementById('perfil-apellido').textContent = "Apellido: " + apellido;
+            document.getElementById('perfil-nombre').textContent = "Nombre: " + (nombre || 'N/A');
+            document.getElementById('perfil-apellido').textContent = "Apellido: " + (apellido || 'N/A');
             document.getElementById('perfil-usuario').textContent = "Email: " + email; 
             document.getElementById('perfil-modal-bg').classList.add('show');
         }
@@ -400,7 +403,7 @@
             msg.classList.add('show');
             setTimeout(() => {
                 msg.classList.remove('show');
-            }, 2500);
+            }, 2500); // Duración de la animación + un pequeño retraso
         }
 
         // *** FUNCIONES QUE INTERACTÚAN CON EL BACKEND ***
@@ -430,7 +433,7 @@
                 }
             } catch (error) {
                 console.error('Error al cargar usuarios desde el backend:', error);
-                tbody.innerHTML = '<tr><td colspan="4">Error al cargar usuarios.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4">Error al cargar usuarios. Intenta de nuevo más tarde.</td></tr>';
             }
         }
 
@@ -483,14 +486,15 @@
                     accesoSection.style.display = '';
                     mainSection.style.display = 'none';
                     sidebarSection.style.display = 'none';
-                    document.getElementById('user-avatar-container').innerHTML = '';
+                    document.getElementById('user-avatar-container').innerHTML = ''; // Limpiar avatar al desloguear
+                    document.getElementById('usuarios-section').style.display = 'none'; // Ocultar tabla de usuarios
                 }
             }
 
             updateUI();
 
 
-            // *** LOGICA DE LOGIN (AHORA CON BACKEND) ***
+            // *** LOGICA DE LOGIN CON BACKEND ***
             loginForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 const email = loginForm.email.value.trim();
@@ -503,18 +507,17 @@
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ username: email, password: clave }) 
+                        body: JSON.stringify({ email: email, password: clave }) // Asegúrate de que el backend espera 'email' y 'password'
                     });
 
                     const result = await response.json();
 
                     if (response.ok) { 
                         localStorage.setItem('logueado', 'si');
-                        // Asegúrate de que tu backend devuelve nombre y apellido en el objeto 'usuario'
                         localStorage.setItem('email_actual', result.usuario.email);
-                        localStorage.setItem('nombre_actual', result.usuario.nombre || result.usuario.email.split('@')[0]); // Fallback si no viene nombre
-                        localStorage.setItem('apellido_actual', result.usuario.apellido || ''); // Fallback si no viene apellido
-                        localStorage.setItem('foto_actual', ''); 
+                        localStorage.setItem('nombre_actual', result.usuario.nombre || result.usuario.email.split('@')[0]);
+                        localStorage.setItem('apellido_actual', result.usuario.apellido || '');
+                        localStorage.setItem('foto_actual', result.usuario.foto || ''); // Guarda la foto si el backend la envía
                         
                         loginForm.reset();
                         mostrarBienvenida(result.usuario.nombre || result.usuario.email.split('@')[0]); 
@@ -523,7 +526,7 @@
                         }, 1200);
                         
                     } else { 
-                        loginError.textContent = result.mensaje || 'Error al iniciar sesión.';
+                        loginError.textContent = result.mensaje || 'Credenciales incorrectas. Inténtalo de nuevo.';
                     }
                 } catch (error) {
                     console.error('Error de conexión con el servidor para login:', error);
@@ -531,7 +534,7 @@
                 }
             });
 
-            // *** LOGICA DE REGISTRO (AHORA CON BACKEND) ***
+            // *** LOGICA DE REGISTRO CON BACKEND ***
             registerForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 const nombre = registerForm.nombre.value.trim();
@@ -539,6 +542,8 @@
                 const email = registerForm.email.value.trim();
                 const clave = registerForm.clave.value.trim();
                 const clave2 = registerForm.clave2.value.trim();
+                const fotoFile = registerFotoInput.files[0];
+                let fotoBase64 = '';
                 
                 registerError.textContent = ''; 
                 registerSuccess.textContent = ''; 
@@ -547,54 +552,79 @@
                     registerError.textContent = "Completa todos los campos obligatorios.";
                     return;
                 }
+                if (clave.length < 6) { // Ejemplo de validación de longitud de contraseña
+                    registerError.textContent = "La contraseña debe tener al menos 6 caracteres.";
+                    return;
+                }
                 if (clave !== clave2) {
                     registerError.textContent = "Las contraseñas no coinciden.";
                     return;
                 }
+                if (!/\S+@\S+\.\S+/.test(email)) { // Validación de formato de email
+                    registerError.textContent = "Por favor, ingresa un formato de email válido.";
+                    return;
+                }
 
-                const userData = { 
-                    nombre: nombre,      // Enviamos nombre
-                    apellido: apellido,  // Enviamos apellido
-                    email: email,        // Enviamos email
-                    password: clave      // Enviamos password
+                const processRegistration = async () => {
+                    const userData = { 
+                        nombre: nombre,
+                        apellido: apellido,
+                        email: email,
+                        password: clave,
+                        foto: fotoBase64 // Enviamos la foto en Base64 (puede ser una cadena vacía)
+                    };
+
+                    try {
+                        const response = await fetch('https://proyectoexpokinal.onrender.com/register', { 
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(userData)
+                        });
+
+                        const data = await response.json();
+
+                        if (response.ok) { 
+                            registerSuccess.textContent = "¡Registro exitoso! Ya puedes iniciar sesión.";
+                            registerForm.reset();
+                            document.getElementById('show-login').click(); // Volver al formulario de login
+                        } else { 
+                            registerError.textContent = data.mensaje || 'Error en el registro. Intenta con otro email.';
+                        }
+                    } catch (error) {
+                        console.error('Error de conexión con el servidor para registro:', error);
+                        registerError.textContent = 'No se pudo conectar al servidor. Asegúrate de que el servidor Node.js esté corriendo.';
+                    }
                 };
 
-                try {
-                    // *** URL CORREGIDA PARA REGISTRO ***
-                    const response = await fetch('https://proyectoexpokinal.onrender.com/register', { 
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(userData)
-                    });
-
-                    const data = await response.json();
-
-                    if (response.ok) { 
-                        registerSuccess.textContent = "¡Registro exitoso! Ya puedes iniciar sesión.";
-                        registerForm.reset();
-                        document.getElementById('show-login').click();
-
-                    } else { 
-                        registerError.textContent = data.mensaje || 'Error en el registro.';
-                    }
-                } catch (error) {
-                    console.error('Error de conexión con el servidor para registro:', error);
-                    registerError.textContent = 'No se pudo conectar al servidor. Asegúrate de que el servidor Node.js esté corriendo.';
+                if (fotoFile) {
+                    const reader = new FileReader();
+                    reader.onload = function(ev) {
+                        fotoBase64 = ev.target.result;
+                        processRegistration(); // Llamar a la función de registro después de leer la foto
+                    };
+                    reader.onerror = function() {
+                        registerError.textContent = "Error al leer la imagen. Intenta de nuevo.";
+                        console.error("Error reading file:", reader.error);
+                    };
+                    reader.readAsDataURL(fotoFile);
+                } else {
+                    processRegistration(); // Si no hay foto, registrar directamente
                 }
             });
 
-            // Perfil - Cambiar foto (Solo actualiza localmente, no en la DB)
+            // Perfil - Cambiar foto (Solo actualiza localmente, no en la DB en esta versión)
+            // Para que la foto se persista en el backend, necesitarías una API de actualización
+            // que reciba la nueva foto y la guarde para el usuario actual.
             perfilFotoInput.addEventListener('change', function() {
-                const email = localStorage.getItem('email_actual');
-                if (!email) return;
                 const file = perfilFotoInput.files[0];
                 if (!file) return;
 
                 const reader = new FileReader();
                 reader.onload = function(ev) {
                     localStorage.setItem('foto_actual', ev.target.result);
+                    // Actualizar la interfaz después de cambiar la foto
                     showUserAvatar();
                     showPerfilModal();
                 };
@@ -607,7 +637,7 @@
                 localStorage.removeItem('email_actual');
                 localStorage.removeItem('nombre_actual');
                 localStorage.removeItem('apellido_actual');
-                localStorage.removeItem('foto_actual');
+                localStorage.removeItem('foto_actual'); // Remover la foto al desloguear
                 
                 updateUI();
                 loginForm.reset();

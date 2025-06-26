@@ -21,37 +21,15 @@ const pool = new Pool({
     }
 });
 
-// **********************************************************************************
-// !!! RECORDATORIO IMPORTANTE SOBRE EL CÓDIGO TEMPORAL DE 'DROP TABLE' !!!
-// Las siguientes líneas de código (comentadas abajo) fueron añadidas TEMPORALMENTE
-// para forzar la recreación de la tabla 'usuarios' y solucionar el error de columna 'password'.
-// SI YA HAS LOGRADO REGISTRAR UN USUARIO EXITOSAMENTE DESDE NETLIFY, DEBES ELIMINAR
-// ESTE BLOQUE DE CÓDIGO COMENTADO de tu archivo index.js para evitar que la tabla
-// se borre en cada reinicio del servidor.
-// **********************************************************************************
-/*
-// Este bloque estaba dentro de pool.connect().then(async client => { ...
-// y DEBE SER ELIMINADO si ya solucionaste el problema inicial.
-try {
-    await client.query('DROP TABLE IF EXISTS usuarios CASCADE;'); // Borra la tabla si existe
-    console.log('Tabla "usuarios" eliminada temporalmente para forzar recreación.');
-} catch (dropError) {
-    console.error('Error al intentar eliminar la tabla usuarios (puede que no existiera):', dropError.message);
-}
-*/
-// **********************************************************************************
-// !!! FIN DEL RECORDATORIO SOBRE EL CÓDIGO TEMPORAL !!!
-// **********************************************************************************
-
-
 // Configuración de CORS
 // Define los orígenes permitidos para las solicitudes del frontend.
-// Reemplaza 'https://TU_DOMINIO_NETLIFY.netlify.app' con tu dominio REAL de Netlify.
-// Por ejemplo: 'https://mi-proyecto-kinal.netlify.app'
+// Dado que el frontend está siendo servido por este mismo backend,
+// la URL del backend será un origen permitido automáticamente.
 const allowedOrigins = [
     'http://localhost:3000', // Para desarrollo local (si tu frontend corre en este puerto)
-    'https://proyectoexpokinal.onrender.com', // Tu propia URL de backend en Render
-    'https://TU_DOMINO_NETLIFY.netlify.app' // ¡¡¡AQUÍ VA LA URL REAL DE TU SITIO EN NETLIFY!!!
+    'https://proyectoexpokinal.onrender.com' // Tu propia URL de backend en Render
+    // Si tu frontend está en Netlify o un dominio diferente, deberías añadirlo aquí:
+    // 'https://tu-dominio-netlify-o-otro.netlify.app'
 ];
 
 app.use(cors({
@@ -66,17 +44,17 @@ app.use(cors({
     }
 }));
 
-
-app.use(express.json()); // Middleware para parsear cuerpos de solicitud JSON
+app.use(express.json({ limit: '50mb' })); // Middleware para parsear cuerpos de solicitud JSON
+// Se aumentó el límite para permitir el envío de imágenes en Base64
 
 // =========================================================
 // RUTAS DE LA API
 // =========================================================
 
 // Ruta de Registro de Usuario
-// Espera: { nombre, apellido, email, password }
+// Espera: { nombre, apellido, email, password, foto (opcional) }
 app.post('/register', async (req, res) => {
-    const { nombre, apellido, email, password } = req.body;
+    const { nombre, apellido, email, password, foto } = req.body; // Se añade 'foto'
 
     // Validación básica de campos
     if (!nombre || !apellido || !email || !password) {
@@ -93,10 +71,11 @@ app.post('/register', async (req, res) => {
         // Encripta la contraseña antes de guardarla en la base de datos
         const hashedPassword = await bcrypt.hash(password, 10); // 10 es el costo del salt (nivel de complejidad)
 
-        // Inserta el nuevo usuario en la base de datos
+        // Inserta el nuevo usuario en la base de datos, incluyendo la foto
+        // Se añade 'foto' a la lista de columnas y a los valores a insertar
         const resultado = await pool.query(
-            'INSERT INTO usuarios (nombre, apellido, email, password) VALUES ($1, $2, $3, $4) RETURNING id, nombre, apellido, email',
-            [nombre, apellido, email, hashedPassword]
+            'INSERT INTO usuarios (nombre, apellido, email, password, foto) VALUES ($1, $2, $3, $4, $5) RETURNING id, nombre, apellido, email, foto',
+            [nombre, apellido, email, hashedPassword, foto || null] // Pasa 'foto' o null si está vacía
         );
 
         res.status(201).json({ mensaje: 'Usuario registrado exitosamente', usuario: resultado.rows[0] });
@@ -109,18 +88,21 @@ app.post('/register', async (req, res) => {
 });
 
 // Ruta de Inicio de Sesión de Usuario
-// Espera: { username: email, password: clave }
+// Espera: { email, password }
 app.post('/login', async (req, res) => {
-    const { username, password } = req.body; // 'username' se usa para el email
+    // Se usará 'email' en lugar de 'username' como nombre de campo para mayor claridad,
+    // ya que el frontend envía 'email'.
+    const { email, password } = req.body; 
 
     // Validación básica de campos
-    if (!username || !password) {
+    if (!email || !password) {
         return res.status(400).json({ mensaje: 'El email y la contraseña son obligatorios.' });
     }
 
     try {
         // Busca el usuario por email en la base de datos
-        const usuarioResultado = await pool.query('SELECT * FROM usuarios WHERE email = $1', [username]);
+        // Se selecciona también la columna 'foto'
+        const usuarioResultado = await pool.query('SELECT id, nombre, apellido, email, password, foto FROM usuarios WHERE email = $1', [email]);
         const usuario = usuarioResultado.rows[0];
 
         // Si el usuario no existe
@@ -144,7 +126,7 @@ app.post('/login', async (req, res) => {
             { expiresIn: '1h' } // El token expira en 1 hora
         );
 
-        // Devuelve el token y los datos del usuario (sin la contraseña hasheada)
+        // Devuelve el token y los datos del usuario (sin la contraseña hasheada), incluyendo la foto
         res.status(200).json({
             mensaje: 'Inicio de sesión exitoso',
             token,
@@ -152,7 +134,8 @@ app.post('/login', async (req, res) => {
                 id: usuario.id,
                 nombre: usuario.nombre,
                 apellido: usuario.apellido,
-                email: usuario.email
+                email: usuario.email,
+                foto: usuario.foto // Se incluye el campo foto
             }
         });
 
@@ -163,10 +146,10 @@ app.post('/login', async (req, res) => {
 });
 
 // Ruta para obtener todos los usuarios (para la tabla de administración)
-// Solo selecciona datos públicos.
+// Solo selecciona datos públicos. Se incluye la foto para mostrarla en la tabla si es necesario
 app.get('/usuarios', async (req, res) => {
     try {
-        const resultado = await pool.query('SELECT id, nombre, apellido, email FROM usuarios ORDER BY id ASC');
+        const resultado = await pool.query('SELECT id, nombre, apellido, email, foto FROM usuarios ORDER BY id ASC'); // Se añade 'foto'
         res.status(200).json(resultado.rows);
     } catch (error) {
         console.error('Error al obtener usuarios:', error);
@@ -207,7 +190,7 @@ pool.connect()
     .then(client => { // Usamos 'client' para asegurar que la consulta se hace en la conexión establecida
         console.log('Conectado a la base de datos PostgreSQL.');
         // Si la tabla 'usuarios' no existe, la crea con las columnas especificadas.
-        // Si ya existe (y fue creada correctamente), este comando no hará nada.
+        // Se añade la columna 'foto' de tipo TEXT para almacenar la imagen en Base64.
         return client.query(`
             CREATE TABLE IF NOT EXISTS usuarios (
                 id SERIAL PRIMARY KEY,
@@ -215,12 +198,13 @@ pool.connect()
                 apellido VARCHAR(100) NOT NULL,
                 email VARCHAR(100) UNIQUE NOT NULL,
                 password VARCHAR(255) NOT NULL,
+                foto TEXT, -- Columna para almacenar la foto en Base64
                 fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
     })
     .then(() => {
-        console.log('Tabla "usuarios" verificada o creada.');
+        console.log('Tabla "usuarios" verificada o creada (con columna foto).');
         // Inicia el servidor Express una vez que la DB esté lista.
         app.listen(PORT, () => {
             console.log(`Servidor Node.js corriendo en el puerto ${PORT}`);
