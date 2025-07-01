@@ -24,8 +24,6 @@ app.use(express.static(path.join(__dirname, 'proyecto')));
 // Middleware para verificar el token JWT
 const verifyToken = (req, res, next) => {
     const token = req.headers['authorization'];
-    // IMPORTANTE: Los usuarios invitados no tendrán token, por lo que esta verificación
-    // impedirá el acceso a rutas protegidas para ellos, lo cual es lo esperado.
     if (!token) {
         return res.status(403).json({ message: 'Token no proporcionado.' });
     }

@@ -374,6 +374,10 @@
 
         function renderAvatar(containerId, nombre, apellido, foto, size, clickHandler = null) {
             const container = document.getElementById(containerId);
+            if (!container) {
+                console.warn(`Contenedor con ID '${containerId}' no encontrado.`);
+                return;
+            }
             container.innerHTML = ''; // Limpiar contenido existente
             if (foto) {
                 const img = document.createElement('img');
@@ -401,7 +405,8 @@
             if (localStorage.getItem('correo_actual') !== 'invitado@temp.com') {
                 renderAvatar('user-avatar-container', nombre, apellido, foto, window.innerWidth < 600 ? 36 : 44, showPerfilModal);
             } else {
-                document.getElementById('user-avatar-container').innerHTML = ''; // Ocultar avatar para invitados
+                const container = document.getElementById('user-avatar-container');
+                if (container) container.innerHTML = ''; // Ocultar avatar para invitados
             }
         }
 
@@ -421,11 +426,13 @@
             document.getElementById('perfil-modal-bg').classList.add('show');
         }
         function closePerfilModal() {
-            document.getElementById('perfil-modal-bg').classList.remove('show');
+            const modal = document.getElementById('perfil-modal-bg');
+            if (modal) modal.classList.remove('show');
         }
 
         function mostrarBienvenida(nombre) {
             const msg = document.getElementById('bienvenido-full');
+            if (!msg) return;
             msg.innerHTML = `<span class="bienvenido-text">BIENVENIDO ${nombre}</span>`;
             msg.classList.add('show');
             setTimeout(() => {
@@ -440,9 +447,16 @@
 
         async function cargarUsuariosDesdeBackend() {
             const tbody = document.querySelector('#usuarios-table tbody');
+            if (!tbody) return; // Asegurarse de que el tbody existe
+
             tbody.innerHTML = '<tr><td colspan="4">Cargando usuarios...</td></tr>';
             try {
                 const token = localStorage.getItem('token');
+                if (!token) {
+                    tbody.innerHTML = '<tr><td colspan="4">No autenticado para ver usuarios.</td></tr>';
+                    return;
+                }
+
                 const response = await fetch(`${API_BASE_URL}/users`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
@@ -479,6 +493,8 @@
         async function mostrarUsuariosSiAdmin() {
             const emailActual = localStorage.getItem('correo_actual');
             const usuariosSection = document.getElementById('usuarios-section');
+            if (!usuariosSection) return; // Asegurarse de que la sección existe
+
             // Solo si el usuario es el admin real (no el invitado)
             if (emailActual === 'admin@admin.com') { 
                 usuariosSection.style.display = '';
@@ -488,12 +504,62 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
+        // --- Función para actualizar la interfaz de usuario ---
+        function updateUI() {
             const accesoSection = document.getElementById('acceso-section');
-            const loginForm = document.getElementById('login-form');
-            const registerForm = document.getElementById('register-form');
             const mainSection = document.getElementById('main-section');
             const sidebarSection = document.getElementById('sidebar-section');
+            const userAvatarContainer = document.getElementById('user-avatar-container');
+            const usuariosSection = document.getElementById('usuarios-section');
+
+            // Asegurarse de que todos los elementos existen antes de manipularlos
+            if (!accesoSection || !mainSection || !sidebarSection || !userAvatarContainer || !usuariosSection) {
+                console.error("Algunos elementos UI no se encontraron. La interfaz no se actualizará completamente.");
+                return;
+            }
+
+            if (localStorage.getItem('logueado') === 'si') {
+                accesoSection.style.display = 'none';
+                mainSection.style.display = ''; // O 'block' o 'flex' según tu CSS
+                sidebarSection.style.display = '';
+                showUserAvatar(); // Muestra el avatar si no es invitado
+                mostrarUsuariosSiAdmin(); // Muestra la tabla de usuarios si es admin
+            } else {
+                accesoSection.style.display = ''; // O 'block' o 'flex'
+                mainSection.style.display = 'none';
+                sidebarSection.style.display = 'none';
+                userAvatarContainer.innerHTML = ''; // Limpiar avatar al desloguear
+                usuariosSection.style.display = 'none'; // Ocultar tabla de usuarios
+                closePerfilModal(); // Asegurarse de que el modal de perfil esté cerrado
+            }
+        }
+
+
+        // --- Función para cerrar sesión ---
+        function logout() {
+            // Limpiar todas las claves de localStorage relacionadas con la sesión
+            localStorage.removeItem('logueado');
+            localStorage.removeItem('correo_actual');
+            localStorage.removeItem('nombre_actual');
+            localStorage.removeItem('apellido_actual');
+            localStorage.removeItem('foto_actual');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+
+            // Ocultar el menú lateral si está abierto
+            const menu = document.getElementById('menu-list');
+            if (menu) menu.classList.remove('show'); 
+
+            // Actualizar la interfaz de usuario para mostrar la sección de acceso
+            updateUI(); 
+
+            // Cerrar el modal de perfil si está abierto
+            closePerfilModal(); 
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const loginForm = document.getElementById('login-form');
+            const registerForm = document.getElementById('register-form');
             const loginError = document.getElementById('login-error');
             const registerError = document.getElementById('register-error');
             const registerSuccess = document.getElementById('register-success');
@@ -517,115 +583,26 @@
                 loginError.textContent = '';
             };
 
-            function updateUI() {
-                if (localStorage.getItem('logueado') === 'si') {
-                    accesoSection.style.display = 'none';
-                    mainSection.style.display = '';
-                    sidebarSection.style.display = '';
-                    showUserAvatar();
-                    mostrarUsuariosSiAdmin();
-                } else {
-                    accesoSection.style.display = '';
-                    mainSection.style.display = 'none';
-                    sidebarSection.style.display = 'none';
-                    document.getElementById('user-avatar-container').innerHTML = ''; // Limpiar avatar al desloguear
-                    document.getElementById('usuarios-section').style.display = 'none'; // Ocultar tabla de usuarios
-                }
-            }
-
+            // Ejecuta updateUI al cargar la página para establecer el estado inicial
             updateUI();
 
 
             // *** LOGICA DE LOGIN CON BACKEND ***
-            loginForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                const correo = loginForm.email.value.trim();
-                const password = loginForm.clave.value.trim();
+            if (loginForm) { // Asegurarse de que el formulario exista
+                loginForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    const correo = loginForm.email.value.trim();
+                    const password = loginForm.clave.value.trim();
 
-                loginError.textContent = ''; 
-
-                try {
-                    const response = await fetch(`${API_BASE_URL}/login`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ correo: correo, password: password })
-                    });
-
-                    const data = await response.json();
-
-                    if (response.ok) { 
-                        localStorage.setItem('logueado', 'si');
-                        localStorage.setItem('correo_actual', data.user.correo);
-                        localStorage.setItem('nombre_actual', data.user.nombre || data.user.correo.split('@')[0]);
-                        localStorage.setItem('apellido_actual', data.user.apellido || '');
-                        localStorage.setItem('foto_actual', data.user.foto || '');
-                        localStorage.setItem('token', data.token);
-                        localStorage.setItem('user', JSON.stringify(data.user));
-
-                        loginForm.reset();
-                        mostrarBienvenida(data.user.nombre || data.user.correo.split('@')[0]); 
-                        setTimeout(() => {
-                            updateUI(); 
-                        }, 1200);
-                        
-                    } else { 
-                        loginError.textContent = data.message || 'Credenciales incorrectas. Inténtalo de nuevo.';
-                    }
-                } catch (error) {
-                    console.error('Error de conexión con el servidor para login:', error);
-                    loginError.textContent = 'No se pudo conectar al servidor. Asegúrate de que el servidor Node.js esté corriendo.';
-                }
-            });
-
-            // *** LOGICA DE REGISTRO CON BACKEND ***
-            registerForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                const nombre = registerForm.nombre.value.trim();
-                const apellido = registerForm.apellido.value.trim();
-                const correo = registerForm.email.value.trim();
-                const password = registerForm.clave.value.trim();
-                const clave2 = registerForm.clave2.value.trim();
-                
-                let fotoBase64 = ''; 
-                
-                registerError.textContent = ''; 
-                registerSuccess.textContent = ''; 
-
-                if (!nombre || !apellido || !correo || !password || !clave2) {
-                    registerError.textContent = "Completa todos los campos obligatorios.";
-                    return;
-                }
-                if (password.length < 6) {
-                    registerError.textContent = "La contraseña debe tener al menos 6 caracteres.";
-                    return;
-                }
-                if (password !== clave2) {
-                    registerError.textContent = "Las contraseñas no coinciden.";
-                    return;
-                }
-                if (!/\S+@\S+\.\S+/.test(correo)) {
-                    registerError.textContent = "Por favor, ingresa un formato de correo válido.";
-                    return;
-                }
-
-                const processRegistration = async () => {
-                    const userData = { 
-                        nombre: nombre,
-                        apellido: apellido,
-                        correo: correo,
-                        password: password,
-                        foto: fotoBase64 
-                    };
+                    loginError.textContent = ''; 
 
                     try {
-                        const response = await fetch(`${API_BASE_URL}/register`, { 
+                        const response = await fetch(`${API_BASE_URL}/login`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
                             },
-                            body: JSON.stringify(userData)
+                            body: JSON.stringify({ correo: correo, password: password })
                         });
 
                         const data = await response.json();
@@ -639,64 +616,149 @@
                             localStorage.setItem('token', data.token);
                             localStorage.setItem('user', JSON.stringify(data.user));
 
-                            registerForm.reset();
-                            mostrarBienvenida(data.user.nombre || data.user.correo.split('@')[0]);
+                            loginForm.reset();
+                            mostrarBienvenida(data.user.nombre || data.user.correo.split('@')[0]); 
                             setTimeout(() => {
-                                updateUI();
+                                updateUI(); 
                             }, 1200);
+                            
                         } else { 
-                            registerError.textContent = data.message || 'Error en el registro. Intenta con otro correo.';
+                            loginError.textContent = data.message || 'Credenciales incorrectas. Inténtalo de nuevo.';
                         }
                     } catch (error) {
-                        console.error('Error de conexión con el servidor para registro:', error);
-                        registerError.textContent = 'No se pudo conectar al servidor. Asegúrate de que el servidor Node.js esté corriendo.';
+                        console.error('Error de conexión con el servidor para login:', error);
+                        loginError.textContent = 'No se pudo conectar al servidor. Asegúrate de que el servidor Node.js esté corriendo.';
                     }
-                };
+                });
+            }
 
-                processRegistration(); 
-            });
+            // *** LOGICA DE REGISTRO CON BACKEND ***
+            if (registerForm) { // Asegurarse de que el formulario exista
+                registerForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    const nombre = registerForm.nombre.value.trim();
+                    const apellido = registerForm.apellido.value.trim();
+                    const correo = registerForm.email.value.trim();
+                    const password = registerForm.clave.value.trim();
+                    const clave2 = registerForm.clave2.value.trim();
+                    
+                    let fotoBase64 = ''; 
+                    
+                    registerError.textContent = ''; 
+                    registerSuccess.textContent = ''; 
 
-            // Lógica para actualizar foto de perfil
-            perfilFotoInput.addEventListener('change', function() {
-                const file = this.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = async function(e) {
-                        const fotoBase64 = e.target.result;
-                        const userId = JSON.parse(localStorage.getItem('user')).id;
-                        const token = localStorage.getItem('token');
-                        const nombre = localStorage.getItem('nombre_actual');
-                        const apellido = localStorage.getItem('apellido_actual');
-                        const correo = localStorage.getItem('correo_actual');
+                    if (!nombre || !apellido || !correo || !password || !clave2) {
+                        registerError.textContent = "Completa todos los campos obligatorios.";
+                        return;
+                    }
+                    if (password.length < 6) {
+                        registerError.textContent = "La contraseña debe tener al menos 6 caracteres.";
+                        return;
+                    }
+                    if (password !== clave2) {
+                        registerError.textContent = "Las contraseñas no coinciden.";
+                        return;
+                    }
+                    if (!/\S+@\S+\.\S+/.test(correo)) {
+                        registerError.textContent = "Por favor, ingresa un formato de correo válido.";
+                        return;
+                    }
+
+                    const processRegistration = async () => {
+                        const userData = { 
+                            nombre: nombre,
+                            apellido: apellido,
+                            correo: correo,
+                            password: password,
+                            foto: fotoBase64 
+                        };
 
                         try {
-                            const response = await fetch(`${API_BASE_URL}/profile`, {
-                                method: 'PUT',
+                            const response = await fetch(`${API_BASE_URL}/register`, { 
+                                method: 'POST',
                                 headers: {
-                                    'Content-Type': 'application/json',
-                                    'Authorization': `Bearer ${token}`
+                                    'Content-Type': 'application/json'
                                 },
-                                body: JSON.stringify({ nombre, apellido, correo, foto: fotoBase64 })
+                                body: JSON.stringify(userData)
                             });
 
-                            if (response.ok) {
-                                const data = await response.json();
-                                localStorage.setItem('foto_actual', data.user.foto);
-                                showUserAvatar(); // Actualizar el avatar en el header
-                                showPerfilModal(); // Actualizar el avatar y datos en el modal
-                                alert('Foto de perfil actualizada con éxito.');
-                            } else {
-                                const errorData = await response.json();
-                                alert('Error al actualizar la foto de perfil: ' + (errorData.message || 'Desconocido'));
+                            const data = await response.json();
+
+                            if (response.ok) { 
+                                localStorage.setItem('logueado', 'si');
+                                localStorage.setItem('correo_actual', data.user.correo);
+                                localStorage.setItem('nombre_actual', data.user.nombre || data.user.correo.split('@')[0]);
+                                localStorage.setItem('apellido_actual', data.user.apellido || '');
+                                localStorage.setItem('foto_actual', data.user.foto || '');
+                                localStorage.setItem('token', data.token);
+                                localStorage.setItem('user', JSON.stringify(data.user));
+
+                                registerForm.reset();
+                                mostrarBienvenida(data.user.nombre || data.user.correo.split('@')[0]);
+                                setTimeout(() => {
+                                    updateUI();
+                                }, 1200);
+                            } else { 
+                                registerError.textContent = data.message || 'Error en el registro. Intenta con otro correo.';
                             }
                         } catch (error) {
-                            console.error('Error al subir la foto de perfil:', error);
-                            alert('No se pudo conectar al servidor para actualizar la foto.');
+                            console.error('Error de conexión con el servidor para registro:', error);
+                            registerError.textContent = 'No se pudo conectar al servidor. Asegúrate de que el servidor Node.js esté corriendo.';
                         }
                     };
-                    reader.readAsDataURL(file);
-                }
-            });
+
+                    processRegistration(); 
+                });
+            }
+
+            // Lógica para actualizar foto de perfil
+            if (perfilFotoInput) { // Asegurarse de que el input exista
+                perfilFotoInput.addEventListener('change', function() {
+                    const file = this.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = async function(e) {
+                            const fotoBase64 = e.target.result;
+                            const userString = localStorage.getItem('user');
+                            if (!userString) {
+                                alert('No hay usuario logueado para actualizar la foto.');
+                                return;
+                            }
+                            const userId = JSON.parse(userString).id;
+                            const token = localStorage.getItem('token');
+                            const nombre = localStorage.getItem('nombre_actual');
+                            const apellido = localStorage.getItem('apellido_actual');
+                            const correo = localStorage.getItem('correo_actual');
+
+                            try {
+                                const response = await fetch(`${API_BASE_URL}/profile`, {
+                                    method: 'PUT',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Bearer ${token}`
+                                    },
+                                    body: JSON.stringify({ nombre, apellido, correo, foto: fotoBase64 })
+                                });
+
+                                if (response.ok) {
+                                    const data = await response.json();
+                                    localStorage.setItem('foto_actual', data.user.foto);
+                                    showUserAvatar(); // Actualizar el avatar en el header
+                                    showPerfilModal(); // Actualizar el avatar y datos en el modal
+                                    alert('Foto de perfil actualizada con éxito.');
+                                } else {
+                                    const errorData = await response.json();
+                                    alert('Error al actualizar la foto de perfil: ' + (errorData.message || 'Desconocido'));
+                                }
+                            } catch (error) {
+                                console.error('Error al subir la foto de perfil:', error);
+                                alert('No se pudo conectar al servidor para actualizar la foto.');
+                            }
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
 
             // *** LOGICA DE "SEGUIR SIN CUENTA" ***
             function handleGuestLogin() {
@@ -714,22 +776,9 @@
                 }, 1200); 
             }
 
-            guestLoginBtn.addEventListener('click', handleGuestLogin);
-            guestLoginBtnRegister.addEventListener('click', handleGuestLogin);
+            if (guestLoginBtn) guestLoginBtn.addEventListener('click', handleGuestLogin);
+            if (guestLoginBtnRegister) guestLoginBtnRegister.addEventListener('click', handleGuestLogin);
         });
-
-        function logout() {
-            localStorage.removeItem('logueado');
-            localStorage.removeItem('correo_actual');
-            localStorage.removeItem('nombre_actual');
-            localStorage.removeItem('apellido_actual');
-            localStorage.removeItem('foto_actual');
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            document.getElementById('menu-list').classList.remove('show'); // Ocultar menú
-            updateUI(); // Refrescar la interfaz de usuario
-            closePerfilModal(); // Cerrar el modal de perfil si está abierto
-        }
     </script>
 </body>
 </html>
