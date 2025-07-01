@@ -236,7 +236,6 @@ app.get('/users', verifyToken, async (req, res) => {
         return res.status(403).json({ message: 'Acceso denegado. Solo administradores.' });
     }
     try {
-        // Selecciona también el rol
         const users = await pool.query("SELECT id, nombre, apellido, correo, rol, foto FROM usuarios"); 
         res.status(200).json(users.rows);
     } catch (err) {
@@ -286,6 +285,10 @@ app.delete('/users/:id', verifyToken, async (req, res) => {
     }
     const { id } = req.params;
     try {
+        // Validación extra: no permitir que el admin se elimine a sí mismo
+        if (parseInt(id) === req.userId) {
+            return res.status(400).json({ message: 'No puedes eliminar tu propia cuenta de administrador.' });
+        }
         await pool.query("DELETE FROM usuarios WHERE id = $1", [id]);
         res.status(200).json({ message: 'Usuario eliminado con éxito.' });
     } catch (err) {

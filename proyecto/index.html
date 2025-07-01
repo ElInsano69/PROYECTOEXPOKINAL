@@ -7,7 +7,7 @@
     <style>
         /* Tu CSS actual va aquí. No he hecho cambios en el CSS. */
         html, body { height: 100%; }
-        body { margin: 0; font-family: Arial, sans-serif; min-height: 10vh; background: linear-gradient(135deg, #e0e7ef 0%, #f8fafc 100%);}
+        body { margin: 0; font-family: Arial, sans-serif; min-height: 100vh; background: linear-gradient(135deg, #e0e7ef 0%, #f8fafc 100%);}
         .sidebar { width: 0; min-height: 100vh; position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none;}
         .menu-icon { margin-top: 22px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; z-index: 201; position: fixed; left: 16px; top: 22px; pointer-events: auto;}
         .bar { width: 28px; height: 4px; background: #fff; border-radius: 2px; transition: background 0.2s;}
@@ -233,6 +233,20 @@
         .usuarios-content tr:last-child td {
             border-bottom: none;
         }
+        /* Estilo para el botón de eliminar usuario */
+        .delete-user-btn {
+            background: #e74c3c; /* Rojo */
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: background 0.2s ease;
+        }
+        .delete-user-btn:hover {
+            background: #c0392b; /* Rojo más oscuro */
+        }
         @media (max-width: 600px) {
             header { flex-direction: column; gap: 8px; padding: 16px 0;}
             header img { height: 40px;}
@@ -328,7 +342,8 @@
                         <th>Email</th>
                         <th>Nombre</th>
                         <th>Apellido</th>
-                        <th>Rol</th> </tr>
+                        <th>Rol</th>
+                        <th>Acciones</th> </tr>
                 </thead>
                 <tbody>
                     </tbody>
@@ -443,17 +458,61 @@
 
         const API_BASE_URL = 'https://proyectoexpokinal.onrender.com';
 
+        // Nueva función para eliminar usuario
+        async function deleteUser(userId) {
+            if (!confirm('¿Estás seguro de que quieres eliminar este usuario?')) {
+                return;
+            }
+
+            const token = localStorage.getItem('token');
+            const currentUserEmail = localStorage.getItem('correo_actual');
+            const currentUserRole = localStorage.getItem('rol_actual');
+
+            if (!token || currentUserEmail !== 'admin@admin.com' || currentUserRole !== 'admin') {
+                alert('No tienes permisos para eliminar usuarios.');
+                return;
+            }
+
+            // Evitar que el administrador se elimine a sí mismo
+            const currentUserObj = JSON.parse(localStorage.getItem('user'));
+            if (currentUserObj && currentUserObj.id === userId) {
+                alert('No puedes eliminar tu propia cuenta de administrador.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    alert('Usuario eliminado con éxito.');
+                    cargarUsuariosDesdeBackend(); // Recargar la tabla después de eliminar
+                } else {
+                    const errorData = await response.json();
+                    alert('Error al eliminar usuario: ' + (errorData.message || 'Desconocido'));
+                }
+            } catch (error) {
+                console.error('Error al conectar con el servidor para eliminar usuario:', error);
+                alert('Error de conexión al intentar eliminar usuario.');
+            }
+        }
+
+
         async function cargarUsuariosDesdeBackend() {
             const tbody = document.querySelector('#usuarios-table tbody');
             if (!tbody) return;
 
-            tbody.innerHTML = '<tr><td colspan="5">Cargando usuarios...</td></tr>'; // Actualizado a 5 columnas
+            tbody.innerHTML = '<tr><td colspan="6">Cargando usuarios...</td></tr>'; // Actualizado a 6 columnas
             try {
                 const token = localStorage.getItem('token');
-                const userRole = localStorage.getItem('rol_actual'); // Obtener el rol del usuario
+                const userRole = localStorage.getItem('rol_actual');
                 
-                if (!token || userRole !== 'admin') { // Solo cargar si hay token y el rol es 'admin'
-                    tbody.innerHTML = '<tr><td colspan="5">Acceso denegado. No tienes permisos de administrador.</td></tr>';
+                if (!token || userRole !== 'admin') {
+                    tbody.innerHTML = '<tr><td colspan="6">Acceso denegado. No tienes permisos de administrador.</td></tr>';
                     return;
                 }
 
@@ -464,7 +523,7 @@
                 });
                 if (!response.ok) {
                     if (response.status === 403) {
-                        tbody.innerHTML = '<tr><td colspan="5">Acceso denegado. No tienes permisos de administrador.</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="6">Acceso denegado. No tienes permisos de administrador.</td></tr>';
                         return;
                     }
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -473,25 +532,31 @@
                 tbody.innerHTML = ''; 
 
                 if (usuarios.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5">No hay usuarios registrados.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6">No hay usuarios registrados.</td></tr>';
                 } else {
                     usuarios.forEach(usuario => {
                         const tr = document.createElement('tr');
+                        // Asegúrate de que el administrador actual no tenga el botón de eliminar
+                        const currentUserObj = JSON.parse(localStorage.getItem('user'));
+                        const isCurrentUserAdmin = (currentUserObj && currentUserObj.id === usuario.id && usuario.rol === 'admin');
+
                         tr.innerHTML = `<td>${usuario.id}</td>
                                         <td>${usuario.correo}</td>
                                         <td>${usuario.nombre || 'N/A'}</td>
                                         <td>${usuario.apellido || 'N/A'}</td>
-                                        <td>${usuario.rol || 'N/A'}</td>`; // Mostrar el rol
+                                        <td>${usuario.rol || 'N/A'}</td>
+                                        <td>
+                                            ${!isCurrentUserAdmin ? `<button class="delete-user-btn" onclick="deleteUser(${usuario.id})">Eliminar</button>` : ''}
+                                        </td>`; // Agregar botón de eliminar
                         tbody.appendChild(tr);
                     });
                 }
             } catch (error) {
                 console.error('Error al cargar usuarios desde el backend:', error);
-                tbody.innerHTML = '<tr><td colspan="5">Error al cargar usuarios. Intenta de nuevo más tarde.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6">Error al cargar usuarios. Intenta de nuevo más tarde.</td></tr>';
             }
         }
 
-        // Función principal para actualizar la interfaz de usuario
         function updateUI() {
             const accesoSection = document.getElementById('acceso-section');
             const mainSection = document.getElementById('main-section');
@@ -500,7 +565,6 @@
             const usuariosSection = document.getElementById('usuarios-section');
             const adminDashboardLink = document.getElementById('admin-dashboard-link');
 
-            // Asegurarse de que todos los elementos existen antes de manipularlos
             if (!accesoSection || !mainSection || !sidebarSection || !userAvatarContainer || !usuariosSection || !adminDashboardLink) {
                 console.error("Algunos elementos UI no se encontraron. La interfaz no se actualizará completamente.");
                 return;
@@ -508,27 +572,24 @@
 
             const isUserLoggedIn = localStorage.getItem('logueado') === 'si';
             const currentUserEmail = localStorage.getItem('correo_actual');
-            const currentUserRole = localStorage.getItem('rol_actual'); // Obtener el rol del localStorage
+            const currentUserRole = localStorage.getItem('rol_actual');
 
             if (isUserLoggedIn) {
                 accesoSection.style.display = 'none';
                 sidebarSection.style.display = '';
                 showUserAvatar(); 
 
-                // Mostrar la sección de inicio por defecto
                 mainSection.style.display = '';
-                usuariosSection.style.display = 'none'; // Ocultar la tabla de usuarios por defecto
+                usuariosSection.style.display = 'none';
 
-                // Mostrar el enlace de administración si es admin
                 if (currentUserEmail === 'admin@admin.com' && currentUserRole === 'admin') {
                     adminDashboardLink.style.display = '';
-                    // Al hacer clic en "Administración", mostrar la tabla de usuarios
                     adminDashboardLink.onclick = async function(e) {
-                        e.preventDefault(); // Prevenir navegación por URL
-                        mainSection.style.display = 'none'; // Ocultar sección de bienvenida
-                        usuariosSection.style.display = ''; // Mostrar sección de usuarios
-                        await cargarUsuariosDesdeBackend(); // Cargar los datos
-                        toggleMenu(); // Cerrar el menú lateral
+                        e.preventDefault();
+                        mainSection.style.display = 'none';
+                        usuariosSection.style.display = '';
+                        await cargarUsuariosDesdeBackend();
+                        toggleMenu();
                     };
                 } else {
                     adminDashboardLink.style.display = 'none';
@@ -540,7 +601,7 @@
                 sidebarSection.style.display = 'none';
                 userAvatarContainer.innerHTML = '';
                 usuariosSection.style.display = 'none';
-                adminDashboardLink.style.display = 'none'; // Ocultar para no logueados
+                adminDashboardLink.style.display = 'none';
                 closePerfilModal();
             }
         }
@@ -548,7 +609,7 @@
 
         // --- Función para cerrar sesión ---
         function logout() {
-            localStorage.clear(); // Limpia TODO el localStorage relacionado con la sesión
+            localStorage.clear();
             
             const menu = document.getElementById('menu-list');
             if (menu) menu.classList.remove('show'); 
@@ -583,7 +644,7 @@
                 loginError.textContent = '';
             };
 
-            updateUI(); // Ejecuta updateUI al cargar la página para establecer el estado inicial
+            updateUI();
 
 
             // *** LOGICA DE LOGIN CON BACKEND ***
@@ -614,7 +675,7 @@
                             localStorage.setItem('foto_actual', data.user.foto || '');
                             localStorage.setItem('token', data.token);
                             localStorage.setItem('user', JSON.stringify(data.user));
-                            localStorage.setItem('rol_actual', data.user.rol); // Guardar el rol
+                            localStorage.setItem('rol_actual', data.user.rol);
 
                             loginForm.reset();
                             mostrarBienvenida(data.user.nombre || data.user.correo.split('@')[0]); 
@@ -671,7 +732,7 @@
                             correo: correo,
                             password: password,
                             foto: fotoBase64,
-                            rol: 'estudiante' // Por defecto, los usuarios registrados son 'estudiante'
+                            rol: 'estudiante'
                         };
 
                         try {
@@ -693,7 +754,7 @@
                                 localStorage.setItem('foto_actual', data.user.foto || '');
                                 localStorage.setItem('token', data.token);
                                 localStorage.setItem('user', JSON.stringify(data.user));
-                                localStorage.setItem('rol_actual', data.user.rol); // Guardar el rol
+                                localStorage.setItem('rol_actual', data.user.rol);
 
                                 registerForm.reset();
                                 mostrarBienvenida(data.user.nombre || data.user.correo.split('@')[0]);
@@ -745,7 +806,6 @@
                                 if (response.ok) {
                                     const data = await response.json();
                                     localStorage.setItem('foto_actual', data.user.foto);
-                                    // Actualizar el objeto 'user' completo en localStorage también
                                     localStorage.setItem('user', JSON.stringify(data.user));
                                     showUserAvatar(); 
                                     showPerfilModal(); 
@@ -773,7 +833,7 @@
                 localStorage.removeItem('foto_actual'); 
                 localStorage.removeItem('token'); 
                 localStorage.removeItem('user'); 
-                localStorage.setItem('rol_actual', 'invitado'); // Rol para el invitado
+                localStorage.setItem('rol_actual', 'invitado');
 
                 mostrarBienvenida('Invitado'); 
                 setTimeout(() => {
