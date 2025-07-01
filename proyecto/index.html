@@ -54,6 +54,24 @@
         .acceso-error { color: #c00; margin-top: 10px; font-size: 1em;}
         .acceso-success { color: #080; margin-top: 10px; font-size: 1em;}
         .acceso-switch { margin-top: 18px; color: #002147; cursor: pointer; text-decoration: underline; background: none; border: none; font-size: 1em;}
+        /* Nuevo estilo para el botón "Seguir sin cuenta" */
+        .acceso-guest-btn { 
+            margin-top: 10px; /* Un poco de espacio arriba */
+            background: none; 
+            border: 1px solid #002147; /* Borde más sutil */
+            color: #002147; 
+            padding: 8px 24px; 
+            border-radius: 8px; 
+            font-size: 0.95em; 
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s, border-color 0.2s;
+        }
+        .acceso-guest-btn:hover {
+            background: #e6e6e6; /* Un gris claro al pasar el ratón */
+            color: #001030;
+            border-color: #001030;
+        }
+
         .inicio-content { margin: 40px auto 0 auto; max-width: 600px; background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.10); padding: 32px 24px; text-align: center;}
         .inicio-content h2 { color: #002147; margin: 0 0 16px 0; font-size: 2em; font-weight: bold; letter-spacing: 1px;}
         .inicio-content p { color: #222; font-size: 1.1em;}
@@ -276,6 +294,7 @@
                 <button type="submit">Entrar</button>
                 <div class="acceso-error" id="login-error"></div>
                 <button type="button" class="acceso-switch" id="show-register">¿No tienes cuenta? Regístrate</button>
+                <button type="button" class="acceso-guest-btn" id="guest-login-btn">Seguir sin cuenta</button>
             </form>
             <form id="register-form" autocomplete="off" style="display:none;">
                 <h2>Registrarse</h2>
@@ -284,12 +303,11 @@
                 <input type="email" name="email" placeholder="Email" required><br>
                 <input type="password" name="clave" placeholder="Contraseña" required><br>
                 <input type="password" name="clave2" placeholder="Repetir Contraseña" required><br>
-                <input type="file" name="foto" id="register-foto" class="inputfile" accept="image/*">
-                <label for="register-foto"><span class="icon">📷</span>Agregar foto de perfil</label><br>
                 <button type="submit">Registrarse</button>
                 <div class="acceso-error" id="register-error"></div>
                 <div class="acceso-success" id="register-success"></div>
                 <button type="button" class="acceso-switch" id="show-login">¿Ya tienes cuenta? Inicia sesión</button>
+                <button type="button" class="acceso-guest-btn" id="guest-login-btn-register">Seguir sin cuenta</button>
             </form>
         </section>
         <section class="inicio-content" id="main-section" style="display:none;">
@@ -379,18 +397,27 @@
             const nombre = localStorage.getItem('nombre_actual') || '';
             const apellido = localStorage.getItem('apellido_actual') || '';
             const foto = localStorage.getItem('foto_actual') || ''; 
-            renderAvatar('user-avatar-container', nombre, apellido, foto, window.innerWidth < 600 ? 36 : 44, showPerfilModal);
+            // Solo muestra el avatar si el usuario NO es un invitado
+            if (localStorage.getItem('correo_actual') !== 'invitado@temp.com') {
+                renderAvatar('user-avatar-container', nombre, apellido, foto, window.innerWidth < 600 ? 36 : 44, showPerfilModal);
+            } else {
+                document.getElementById('user-avatar-container').innerHTML = ''; // Ocultar avatar para invitados
+            }
         }
 
         function showPerfilModal() {
-            const correo = localStorage.getItem('correo_actual') || ''; // Cambiado de email a correo
+            // No mostrar el modal de perfil si el usuario es invitado
+            if (localStorage.getItem('correo_actual') === 'invitado@temp.com') {
+                return;
+            }
+            const correo = localStorage.getItem('correo_actual') || '';
             const nombre = localStorage.getItem('nombre_actual') || '';
             const apellido = localStorage.getItem('apellido_actual') || '';
             const foto = localStorage.getItem('foto_actual') || '';
             renderAvatar('perfil-avatar-container', nombre, apellido, foto, window.innerWidth < 600 ? 44 : 60);
             document.getElementById('perfil-nombre').textContent = "Nombre: " + (nombre || 'N/A');
             document.getElementById('perfil-apellido').textContent = "Apellido: " + (apellido || 'N/A');
-            document.getElementById('perfil-usuario').textContent = "Correo: " + correo; // Cambiado de Email a Correo
+            document.getElementById('perfil-usuario').textContent = "Correo: " + correo;
             document.getElementById('perfil-modal-bg').classList.add('show');
         }
         function closePerfilModal() {
@@ -409,21 +436,19 @@
         // *** FUNCIONES QUE INTERACTÚAN CON EL BACKEND ***
 
         // URL base de tu backend en Render
-        const API_BASE_URL = 'https://proyectoexpokinal.onrender.com'; // ¡URL ACTUALIZADA!
+        const API_BASE_URL = 'https://proyectoexpokinal.onrender.com';
 
         async function cargarUsuariosDesdeBackend() {
             const tbody = document.querySelector('#usuarios-table tbody');
             tbody.innerHTML = '<tr><td colspan="4">Cargando usuarios...</td></tr>';
             try {
-                // Endpoint actualizado a /users (el que usa tu backend)
-                const token = localStorage.getItem('token'); // Obtener token del localStorage
+                const token = localStorage.getItem('token');
                 const response = await fetch(`${API_BASE_URL}/users`, {
                     headers: {
-                        'Authorization': `Bearer ${token}` // Enviar el token en los headers
+                        'Authorization': `Bearer ${token}`
                     }
                 });
                 if (!response.ok) {
-                    // Si el token es inválido o no hay, el backend devolverá 403
                     if (response.status === 403) {
                         tbody.innerHTML = '<tr><td colspan="4">Acceso denegado. No tienes permisos de administrador.</td></tr>';
                         return;
@@ -439,7 +464,7 @@
                     usuarios.forEach(usuario => {
                         const tr = document.createElement('tr');
                         tr.innerHTML = `<td>${usuario.id}</td>
-                                        <td>${usuario.correo}</td> <!-- Cambiado de email a correo -->
+                                        <td>${usuario.correo}</td>
                                         <td>${usuario.nombre || 'N/A'}</td>
                                         <td>${usuario.apellido || 'N/A'}</td>`;
                         tbody.appendChild(tr);
@@ -452,8 +477,9 @@
         }
 
         async function mostrarUsuariosSiAdmin() {
-            const emailActual = localStorage.getItem('correo_actual'); // Cambiado de email a correo
+            const emailActual = localStorage.getItem('correo_actual');
             const usuariosSection = document.getElementById('usuarios-section');
+            // Solo si el usuario es el admin real (no el invitado)
             if (emailActual === 'admin@admin.com') { 
                 usuariosSection.style.display = '';
                 await cargarUsuariosDesdeBackend(); 
@@ -471,8 +497,10 @@
             const loginError = document.getElementById('login-error');
             const registerError = document.getElementById('register-error');
             const registerSuccess = document.getElementById('register-success');
-            const perfilFotoInput = document.getElementById('perfil-foto-input');
-            const registerFotoInput = document.getElementById('register-foto');
+            const perfilFotoInput = document.getElementById('perfil-foto-input'); // Se mantiene para la edición de perfil
+            const guestLoginBtn = document.getElementById('guest-login-btn');
+            const guestLoginBtnRegister = document.getElementById('guest-login-btn-register');
+
 
             document.getElementById('show-register').onclick = function() {
                 loginForm.style.display = 'none';
@@ -511,8 +539,8 @@
             // *** LOGICA DE LOGIN CON BACKEND ***
             loginForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
-                const correo = loginForm.email.value.trim(); // Cambiado de email a correo
-                const password = loginForm.clave.value.trim(); // Ya es 'password' en backend
+                const correo = loginForm.email.value.trim();
+                const password = loginForm.clave.value.trim();
 
                 loginError.textContent = ''; 
 
@@ -522,19 +550,19 @@
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ correo: correo, password: password }) // Asegúrate de que el backend espera 'correo' y 'password'
+                        body: JSON.stringify({ correo: correo, password: password })
                     });
 
                     const data = await response.json();
 
                     if (response.ok) { 
                         localStorage.setItem('logueado', 'si');
-                        localStorage.setItem('correo_actual', data.user.correo); // Cambiado de email_actual a correo_actual
+                        localStorage.setItem('correo_actual', data.user.correo);
                         localStorage.setItem('nombre_actual', data.user.nombre || data.user.correo.split('@')[0]);
                         localStorage.setItem('apellido_actual', data.user.apellido || '');
-                        localStorage.setItem('foto_actual', data.user.foto || ''); // Guarda la foto si el backend la envía
-                        localStorage.setItem('token', data.token); // Guardar el token JWT
-                        localStorage.setItem('user', JSON.stringify(data.user)); // Guardar el objeto user
+                        localStorage.setItem('foto_actual', data.user.foto || '');
+                        localStorage.setItem('token', data.token);
+                        localStorage.setItem('user', JSON.stringify(data.user));
 
                         loginForm.reset();
                         mostrarBienvenida(data.user.nombre || data.user.correo.split('@')[0]); 
@@ -543,7 +571,7 @@
                         }, 1200);
                         
                     } else { 
-                        loginError.textContent = data.message || 'Credenciales incorrectas. Inténtalo de nuevo.'; // Cambiado de mensaje a message
+                        loginError.textContent = data.message || 'Credenciales incorrectas. Inténtalo de nuevo.';
                     }
                 } catch (error) {
                     console.error('Error de conexión con el servidor para login:', error);
@@ -556,11 +584,11 @@
                 e.preventDefault();
                 const nombre = registerForm.nombre.value.trim();
                 const apellido = registerForm.apellido.value.trim();
-                const correo = registerForm.email.value.trim(); // Cambiado de email a correo
+                const correo = registerForm.email.value.trim();
                 const password = registerForm.clave.value.trim();
                 const clave2 = registerForm.clave2.value.trim();
-                const fotoFile = registerFotoInput.files[0];
-                let fotoBase64 = '';
+                
+                let fotoBase64 = ''; 
                 
                 registerError.textContent = ''; 
                 registerSuccess.textContent = ''; 
@@ -569,15 +597,15 @@
                     registerError.textContent = "Completa todos los campos obligatorios.";
                     return;
                 }
-                if (password.length < 6) { // Ejemplo de validación de longitud de contraseña (clave -> password)
+                if (password.length < 6) {
                     registerError.textContent = "La contraseña debe tener al menos 6 caracteres.";
                     return;
                 }
-                if (password !== clave2) { // clave -> password
+                if (password !== clave2) {
                     registerError.textContent = "Las contraseñas no coinciden.";
                     return;
                 }
-                if (!/\S+@\S+\.\S+/.test(correo)) { // Validación de formato de email (email -> correo)
+                if (!/\S+@\S+\.\S+/.test(correo)) {
                     registerError.textContent = "Por favor, ingresa un formato de correo válido.";
                     return;
                 }
@@ -586,9 +614,9 @@
                     const userData = { 
                         nombre: nombre,
                         apellido: apellido,
-                        correo: correo, // Cambiado de email a correo
-                        password: password, // Cambiado de clave a password
-                        foto: fotoBase64 // Enviamos la foto en Base64 (puede ser una cadena vacía)
+                        correo: correo,
+                        password: password,
+                        foto: fotoBase64 
                     };
 
                     try {
@@ -603,23 +631,21 @@
                         const data = await response.json();
 
                         if (response.ok) { 
-                            // *** CAMBIO CLAVE AQUÍ: AUTO-LOGIN DESPUÉS DEL REGISTRO ***
                             localStorage.setItem('logueado', 'si');
                             localStorage.setItem('correo_actual', data.user.correo);
                             localStorage.setItem('nombre_actual', data.user.nombre || data.user.correo.split('@')[0]);
                             localStorage.setItem('apellido_actual', data.user.apellido || '');
                             localStorage.setItem('foto_actual', data.user.foto || '');
-                            localStorage.setItem('token', data.token); // Guardar el token
-                            localStorage.setItem('user', JSON.stringify(data.user)); // Guardar el objeto user
+                            localStorage.setItem('token', data.token);
+                            localStorage.setItem('user', JSON.stringify(data.user));
 
                             registerForm.reset();
                             mostrarBienvenida(data.user.nombre || data.user.correo.split('@')[0]);
                             setTimeout(() => {
-                                updateUI(); // Actualizar la UI para mostrar la página principal
+                                updateUI();
                             }, 1200);
-                            // FIN DEL CAMBIO CLAVE
                         } else { 
-                            registerError.textContent = data.message || 'Error en el registro. Intenta con otro correo.'; // Cambiado de mensaje a message
+                            registerError.textContent = data.message || 'Error en el registro. Intenta con otro correo.';
                         }
                     } catch (error) {
                         console.error('Error de conexión con el servidor para registro:', error);
@@ -627,87 +653,83 @@
                     }
                 };
 
-                if (fotoFile) {
+                processRegistration(); 
+            });
+
+            // Lógica para actualizar foto de perfil
+            perfilFotoInput.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file) {
                     const reader = new FileReader();
-                    reader.onload = function(ev) {
-                        fotoBase64 = ev.target.result;
-                        processRegistration(); // Llamar a la función de registro después de leer la foto
+                    reader.onload = async function(e) {
+                        const fotoBase64 = e.target.result;
+                        const userId = JSON.parse(localStorage.getItem('user')).id;
+                        const token = localStorage.getItem('token');
+                        const nombre = localStorage.getItem('nombre_actual');
+                        const apellido = localStorage.getItem('apellido_actual');
+                        const correo = localStorage.getItem('correo_actual');
+
+                        try {
+                            const response = await fetch(`${API_BASE_URL}/profile`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${token}`
+                                },
+                                body: JSON.stringify({ nombre, apellido, correo, foto: fotoBase64 })
+                            });
+
+                            if (response.ok) {
+                                const data = await response.json();
+                                localStorage.setItem('foto_actual', data.user.foto);
+                                showUserAvatar(); // Actualizar el avatar en el header
+                                showPerfilModal(); // Actualizar el avatar y datos en el modal
+                                alert('Foto de perfil actualizada con éxito.');
+                            } else {
+                                const errorData = await response.json();
+                                alert('Error al actualizar la foto de perfil: ' + (errorData.message || 'Desconocido'));
+                            }
+                        } catch (error) {
+                            console.error('Error al subir la foto de perfil:', error);
+                            alert('No se pudo conectar al servidor para actualizar la foto.');
+                        }
                     };
-                    reader.onerror = function() {
-                        registerError.textContent = "Error al leer la imagen. Intenta de nuevo.";
-                        console.error("Error reading file:", reader.error);
-                    };
-                    reader.readAsDataURL(fotoFile);
-                } else {
-                    processRegistration(); // Si no hay foto, registrar directamente
+                    reader.readAsDataURL(file);
                 }
             });
 
-            // Perfil - Cambiar foto (Ahora actualiza en la DB)
-            perfilFotoInput.addEventListener('change', async function() {
-                const file = perfilFotoInput.files[0];
-                if (!file) return;
+            // *** LOGICA DE "SEGUIR SIN CUENTA" ***
+            function handleGuestLogin() {
+                localStorage.setItem('logueado', 'si');
+                localStorage.setItem('correo_actual', 'invitado@temp.com'); // Un correo ficticio para identificar al invitado
+                localStorage.setItem('nombre_actual', 'Invitado');
+                localStorage.setItem('apellido_actual', '');
+                localStorage.removeItem('foto_actual'); // El invitado no tiene foto
+                localStorage.removeItem('token'); // El invitado no tiene token
+                localStorage.removeItem('user'); // El invitado no tiene objeto de usuario completo
 
-                const reader = new FileReader();
-                reader.onload = async function(ev) {
-                    const newFotoBase64 = ev.target.result;
-                    const token = localStorage.getItem('token');
-                    const user = JSON.parse(localStorage.getItem('user'));
-
-                    if (!token || !user) {
-                        alert('No estás autenticado. Por favor, inicia sesión.');
-                        return;
-                    }
-
-                    try {
-                        const response = await fetch(`${API_BASE_URL}/profile`, {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`
-                            },
-                            body: JSON.stringify({ foto: newFotoBase64, nombre: user.nombre, apellido: user.apellido, correo: user.correo })
-                        });
-
-                        const data = await response.json();
-
-                        if (response.ok) {
-                            localStorage.setItem('foto_actual', newFotoBase64); // Actualiza localmente
-                            user.foto = newFotoBase64; // Actualiza el objeto user en localStorage
-                            localStorage.setItem('user', JSON.stringify(user));
-                            alert('Foto de perfil actualizada con éxito.');
-                            showUserAvatar();
-                            showPerfilModal();
-                        } else {
-                            alert(data.message || 'Error al actualizar la foto de perfil.');
-                        }
-                    } catch (error) {
-                        console.error('Error al actualizar la foto de perfil:', error);
-                        alert('Error de conexión al actualizar la foto de perfil.');
-                    }
-                };
-                reader.readAsDataURL(file);
-            });
-
-            // Logout
-            window.logout = function() {
-                localStorage.removeItem('logueado');
-                localStorage.removeItem('correo_actual');
-                localStorage.removeItem('nombre_actual');
-                localStorage.removeItem('apellido_actual');
-                localStorage.removeItem('foto_actual');
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                
-                updateUI();
-                loginForm.reset();
-                registerForm.reset();
-                loginError.textContent = '';
-                registerError.textContent = '';
-                registerSuccess.textContent = '';
-                closePerfilModal();
+                mostrarBienvenida('Invitado'); 
+                setTimeout(() => {
+                    updateUI(); 
+                }, 1200); 
             }
+
+            guestLoginBtn.addEventListener('click', handleGuestLogin);
+            guestLoginBtnRegister.addEventListener('click', handleGuestLogin);
         });
+
+        function logout() {
+            localStorage.removeItem('logueado');
+            localStorage.removeItem('correo_actual');
+            localStorage.removeItem('nombre_actual');
+            localStorage.removeItem('apellido_actual');
+            localStorage.removeItem('foto_actual');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            document.getElementById('menu-list').classList.remove('show'); // Ocultar menú
+            updateUI(); // Refrescar la interfaz de usuario
+            closePerfilModal(); // Cerrar el modal de perfil si está abierto
+        }
     </script>
 </body>
 </html>
