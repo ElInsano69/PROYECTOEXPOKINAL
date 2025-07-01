@@ -1,5 +1,5 @@
-// ... (tu código existente de imports y configuración de Express) ...
-
+// Importa módulos necesarios
+const express = require('express'); // ¡Añadido: Importa Express!
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
