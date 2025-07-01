@@ -1,5 +1,5 @@
 // Importa módulos necesarios
-const express = require('express'); // ¡Añadido: Importa Express!
+const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -37,9 +37,10 @@ const verifyToken = (req, res, next) => {
     });
 };
 
-// Función para inicializar la base de datos y asegurar la columna 'foto'
+// Función para inicializar la base de datos y asegurar la columna 'foto' y 'correo'
 async function initializeDb() {
     try {
+        // Modificado: Cambiado 'email' a 'correo' en la creación de la tabla
         await pool.query(`
             CREATE TABLE IF NOT EXISTS usuarios (
                 id SERIAL PRIMARY KEY,
@@ -53,20 +54,36 @@ async function initializeDb() {
         console.log('Tabla "usuarios" verificada o creada.');
 
         // Verificar si la columna 'foto' existe, y si no, añadirla
-        const columnCheck = await pool.query(`
+        const columnCheckFoto = await pool.query(`
             SELECT column_name
             FROM information_schema.columns
             WHERE table_name = 'usuarios' AND column_name = 'foto';
         `);
 
-        if (columnCheck.rows.length === 0) {
+        if (columnCheckFoto.rows.length === 0) {
             await pool.query(`ALTER TABLE usuarios ADD COLUMN foto VARCHAR(255);`);
             console.log('Columna "foto" añadida a la tabla "usuarios".');
         } else {
             console.log('Columna "foto" ya existe en la tabla "usuarios".');
         }
 
+        // Verificar si la columna 'email' existe (de una versión anterior) y renombrarla a 'correo'
+        const columnCheckEmail = await pool.query(`
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'usuarios' AND column_name = 'email';
+        `);
+
+        if (columnCheckEmail.rows.length > 0) {
+            await pool.query(`ALTER TABLE usuarios RENAME COLUMN email TO correo;`);
+            console.log('Columna "email" renombrada a "correo" en la tabla "usuarios".');
+        } else {
+            console.log('Columna "email" no encontrada o ya renombrada a "correo".');
+        }
+
+
         // Crear usuario administrador si no existe
+        // Modificado: Usando 'correo' en la consulta
         const adminExists = await pool.query("SELECT * FROM usuarios WHERE correo = 'admin@admin.com'");
         if (adminExists.rows.length === 0) {
             const hashedPassword = await bcrypt.hash('admin123', 10);
