@@ -383,14 +383,14 @@
         }
 
         function showPerfilModal() {
-            const email = localStorage.getItem('email_actual') || ''; 
+            const correo = localStorage.getItem('correo_actual') || ''; // Cambiado de email a correo
             const nombre = localStorage.getItem('nombre_actual') || '';
             const apellido = localStorage.getItem('apellido_actual') || '';
             const foto = localStorage.getItem('foto_actual') || '';
             renderAvatar('perfil-avatar-container', nombre, apellido, foto, window.innerWidth < 600 ? 44 : 60);
             document.getElementById('perfil-nombre').textContent = "Nombre: " + (nombre || 'N/A');
             document.getElementById('perfil-apellido').textContent = "Apellido: " + (apellido || 'N/A');
-            document.getElementById('perfil-usuario').textContent = "Email: " + email; 
+            document.getElementById('perfil-usuario').textContent = "Correo: " + correo; // Cambiado de Email a Correo
             document.getElementById('perfil-modal-bg').classList.add('show');
         }
         function closePerfilModal() {
@@ -408,12 +408,26 @@
 
         // *** FUNCIONES QUE INTERACTÚAN CON EL BACKEND ***
 
+        // URL base de tu backend en Render
+        const API_BASE_URL = 'https://proyectoexpokinal.onrender.com'; // ¡URL ACTUALIZADA!
+
         async function cargarUsuariosDesdeBackend() {
             const tbody = document.querySelector('#usuarios-table tbody');
             tbody.innerHTML = '<tr><td colspan="4">Cargando usuarios...</td></tr>';
             try {
-                const response = await fetch('https://proyectoexpokinal.onrender.com/usuarios');
+                // Endpoint actualizado a /users (el que usa tu backend)
+                const token = localStorage.getItem('token'); // Obtener token del localStorage
+                const response = await fetch(`${API_BASE_URL}/users`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}` // Enviar el token en los headers
+                    }
+                });
                 if (!response.ok) {
+                    // Si el token es inválido o no hay, el backend devolverá 403
+                    if (response.status === 403) {
+                        tbody.innerHTML = '<tr><td colspan="4">Acceso denegado. No tienes permisos de administrador.</td></tr>';
+                        return;
+                    }
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const usuarios = await response.json();
@@ -425,7 +439,7 @@
                     usuarios.forEach(usuario => {
                         const tr = document.createElement('tr');
                         tr.innerHTML = `<td>${usuario.id}</td>
-                                        <td>${usuario.email}</td>
+                                        <td>${usuario.correo}</td> <!-- Cambiado de email a correo -->
                                         <td>${usuario.nombre || 'N/A'}</td>
                                         <td>${usuario.apellido || 'N/A'}</td>`;
                         tbody.appendChild(tr);
@@ -438,7 +452,7 @@
         }
 
         async function mostrarUsuariosSiAdmin() {
-            const emailActual = localStorage.getItem('email_actual'); 
+            const emailActual = localStorage.getItem('correo_actual'); // Cambiado de email a correo
             const usuariosSection = document.getElementById('usuarios-section');
             if (emailActual === 'admin@admin.com') { 
                 usuariosSection.style.display = '';
@@ -497,36 +511,38 @@
             // *** LOGICA DE LOGIN CON BACKEND ***
             loginForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
-                const email = loginForm.email.value.trim();
-                const clave = loginForm.clave.value.trim();
+                const correo = loginForm.email.value.trim(); // Cambiado de email a correo
+                const password = loginForm.clave.value.trim(); // Ya es 'password' en backend
+
                 loginError.textContent = ''; 
 
                 try {
-                    const response = await fetch('https://proyectoexpokinal.onrender.com/login', {
+                    const response = await fetch(`${API_BASE_URL}/login`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ email: email, password: clave }) // Asegúrate de que el backend espera 'email' y 'password'
+                        body: JSON.stringify({ correo: correo, password: password }) // Asegúrate de que el backend espera 'correo' y 'password'
                     });
 
                     const result = await response.json();
 
                     if (response.ok) { 
                         localStorage.setItem('logueado', 'si');
-                        localStorage.setItem('email_actual', result.usuario.email);
-                        localStorage.setItem('nombre_actual', result.usuario.nombre || result.usuario.email.split('@')[0]);
-                        localStorage.setItem('apellido_actual', result.usuario.apellido || '');
-                        localStorage.setItem('foto_actual', result.usuario.foto || ''); // Guarda la foto si el backend la envía
-                        
+                        localStorage.setItem('correo_actual', result.user.correo); // Cambiado de email_actual a correo_actual
+                        localStorage.setItem('nombre_actual', result.user.nombre || result.user.correo.split('@')[0]);
+                        localStorage.setItem('apellido_actual', result.user.apellido || '');
+                        localStorage.setItem('foto_actual', result.user.foto || ''); // Guarda la foto si el backend la envía
+                        localStorage.setItem('token', result.token); // Guardar el token JWT
+
                         loginForm.reset();
-                        mostrarBienvenida(result.usuario.nombre || result.usuario.email.split('@')[0]); 
+                        mostrarBienvenida(result.user.nombre || result.user.correo.split('@')[0]); 
                         setTimeout(() => {
                             updateUI(); 
                         }, 1200);
                         
                     } else { 
-                        loginError.textContent = result.mensaje || 'Credenciales incorrectas. Inténtalo de nuevo.';
+                        loginError.textContent = result.message || 'Credenciales incorrectas. Inténtalo de nuevo.'; // Cambiado de mensaje a message
                     }
                 } catch (error) {
                     console.error('Error de conexión con el servidor para login:', error);
@@ -539,8 +555,8 @@
                 e.preventDefault();
                 const nombre = registerForm.nombre.value.trim();
                 const apellido = registerForm.apellido.value.trim();
-                const email = registerForm.email.value.trim();
-                const clave = registerForm.clave.value.trim();
+                const correo = registerForm.email.value.trim(); // Cambiado de email a correo
+                const password = registerForm.clave.value.trim();
                 const clave2 = registerForm.clave2.value.trim();
                 const fotoFile = registerFotoInput.files[0];
                 let fotoBase64 = '';
@@ -548,20 +564,20 @@
                 registerError.textContent = ''; 
                 registerSuccess.textContent = ''; 
 
-                if (!nombre || !apellido || !email || !clave || !clave2) {
+                if (!nombre || !apellido || !correo || !password || !clave2) {
                     registerError.textContent = "Completa todos los campos obligatorios.";
                     return;
                 }
-                if (clave.length < 6) { // Ejemplo de validación de longitud de contraseña
+                if (password.length < 6) { // Ejemplo de validación de longitud de contraseña (clave -> password)
                     registerError.textContent = "La contraseña debe tener al menos 6 caracteres.";
                     return;
                 }
-                if (clave !== clave2) {
+                if (password !== clave2) { // clave -> password
                     registerError.textContent = "Las contraseñas no coinciden.";
                     return;
                 }
-                if (!/\S+@\S+\.\S+/.test(email)) { // Validación de formato de email
-                    registerError.textContent = "Por favor, ingresa un formato de email válido.";
+                if (!/\S+@\S+\.\S+/.test(correo)) { // Validación de formato de email (email -> correo)
+                    registerError.textContent = "Por favor, ingresa un formato de correo válido.";
                     return;
                 }
 
@@ -569,13 +585,13 @@
                     const userData = { 
                         nombre: nombre,
                         apellido: apellido,
-                        email: email,
-                        password: clave,
+                        correo: correo, // Cambiado de email a correo
+                        password: password, // Cambiado de clave a password
                         foto: fotoBase64 // Enviamos la foto en Base64 (puede ser una cadena vacía)
                     };
 
                     try {
-                        const response = await fetch('https://proyectoexpokinal.onrender.com/register', { 
+                        const response = await fetch(`${API_BASE_URL}/register`, { 
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -590,7 +606,7 @@
                             registerForm.reset();
                             document.getElementById('show-login').click(); // Volver al formulario de login
                         } else { 
-                            registerError.textContent = data.mensaje || 'Error en el registro. Intenta con otro email.';
+                            registerError.textContent = data.message || 'Error en el registro. Intenta con otro correo.'; // Cambiado de mensaje a message
                         }
                     } catch (error) {
                         console.error('Error de conexión con el servidor para registro:', error);
@@ -617,27 +633,61 @@
             // Perfil - Cambiar foto (Solo actualiza localmente, no en la DB en esta versión)
             // Para que la foto se persista en el backend, necesitarías una API de actualización
             // que reciba la nueva foto y la guarde para el usuario actual.
-            perfilFotoInput.addEventListener('change', function() {
+            perfilFotoInput.addEventListener('change', async function() { // Añadido async
                 const file = perfilFotoInput.files[0];
                 if (!file) return;
 
                 const reader = new FileReader();
-                reader.onload = function(ev) {
-                    localStorage.setItem('foto_actual', ev.target.result);
-                    // Actualizar la interfaz después de cambiar la foto
-                    showUserAvatar();
-                    showPerfilModal();
+                reader.onload = async function(ev) { // Añadido async
+                    const newFotoBase64 = ev.target.result;
+                    const token = localStorage.getItem('token');
+                    const user = JSON.parse(localStorage.getItem('user'));
+
+                    if (!token || !user) {
+                        alert('No estás autenticado. Por favor, inicia sesión.');
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/profile`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({ foto: newFotoBase64, nombre: user.nombre, apellido: user.apellido, correo: user.correo })
+                        });
+
+                        const data = await response.json();
+
+                        if (response.ok) {
+                            localStorage.setItem('foto_actual', newFotoBase64); // Actualiza localmente
+                            user.foto = newFotoBase64; // Actualiza el objeto user en localStorage
+                            localStorage.setItem('user', JSON.stringify(user));
+                            alert('Foto de perfil actualizada con éxito.');
+                            showUserAvatar();
+                            showPerfilModal();
+                        } else {
+                            alert(data.message || 'Error al actualizar la foto de perfil.');
+                        }
+                    } catch (error) {
+                        console.error('Error al actualizar la foto de perfil:', error);
+                        alert('Error de conexión al actualizar la foto de perfil.');
+                    }
                 };
                 reader.readAsDataURL(file);
             });
 
+
             // Logout
             window.logout = function() {
                 localStorage.removeItem('logueado');
-                localStorage.removeItem('email_actual');
+                localStorage.removeItem('correo_actual'); // Cambiado de email_actual a correo_actual
                 localStorage.removeItem('nombre_actual');
                 localStorage.removeItem('apellido_actual');
                 localStorage.removeItem('foto_actual'); // Remover la foto al desloguear
+                localStorage.removeItem('token'); // Remover el token
+                localStorage.removeItem('user'); // Remover el objeto user
                 
                 updateUI();
                 loginForm.reset();
