@@ -37,21 +37,56 @@ const verifyToken = (req, res, next) => {
     });
 };
 
-// Función para inicializar la base de datos y asegurar la columna 'foto' y 'correo'
+// Función para inicializar la base de datos y asegurar las columnas
 async function initializeDb() {
     try {
-        // Modificado: Cambiado 'email' a 'correo' en la creación de la tabla
+        // Asegúrate de que la tabla base 'usuarios' existe con las columnas principales
         await pool.query(`
             CREATE TABLE IF NOT EXISTS usuarios (
                 id SERIAL PRIMARY KEY,
                 nombre VARCHAR(255) NOT NULL,
                 apellido VARCHAR(255) NOT NULL,
-                correo VARCHAR(255) UNIQUE NOT NULL,
+                -- Inicialmente usa 'email' si no sabemos el estado
+                email_or_correo VARCHAR(255) UNIQUE NOT NULL, 
                 password VARCHAR(255) NOT NULL,
-                rol VARCHAR(50) DEFAULT 'estudiante'
+                rol VARCHAR(50), -- rol puede ser null al inicio, luego se verifica
+                foto VARCHAR(255) -- foto puede ser null al inicio, luego se verifica
             );
         `);
         console.log('Tabla "usuarios" verificada o creada.');
+
+        // Verificar y renombrar 'email' a 'correo' si existe
+        const columnCheckEmail = await pool.query(`
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'usuarios' AND column_name = 'email_or_correo' AND data_type = 'character varying';
+        `);
+        // Si la columna 'email_or_correo' existe, y es realmente 'email', la renombramos.
+        // Esto es un poco más complejo porque si ya la renombró antes, no queremos otro ALTER.
+        // La forma más segura es verificar si 'correo' no existe y 'email' existe.
+        const correoExists = await pool.query(`
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'usuarios' AND column_name = 'correo';
+        `);
+        const emailExists = await pool.query(`
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'usuarios' AND column_name = 'email';
+        `);
+
+        if (emailExists.rows.length > 0 && correoExists.rows.length === 0) {
+            await pool.query(`ALTER TABLE usuarios RENAME COLUMN email TO correo;`);
+            console.log('Columna "email" renombrada a "correo" en la tabla "usuarios".');
+        } else if (correoExists.rows.length > 0) {
+            console.log('Columna "correo" ya existe en la tabla "usuarios".');
+        } else {
+             // Si ninguna existe, y la tabla se creó con email_or_correo, renómbrala a correo
+             // Esto cubre el caso donde la tabla se crea con email_or_correo y necesitamos la 'correo' final
+             await pool.query(`ALTER TABLE usuarios RENAME COLUMN email_or_correo TO correo;`);
+             console.log('Columna inicial renombrada a "correo".');
+        }
+
 
         // Verificar si la columna 'foto' existe, y si no, añadirla
         const columnCheckFoto = await pool.query(`
@@ -67,23 +102,22 @@ async function initializeDb() {
             console.log('Columna "foto" ya existe en la tabla "usuarios".');
         }
 
-        // Verificar si la columna 'email' existe (de una versión anterior) y renombrarla a 'correo'
-        const columnCheckEmail = await pool.query(`
+        // Verificar si la columna 'rol' existe, y si no, añadirla
+        const columnCheckRol = await pool.query(`
             SELECT column_name
             FROM information_schema.columns
-            WHERE table_name = 'usuarios' AND column_name = 'email';
+            WHERE table_name = 'usuarios' AND column_name = 'rol';
         `);
 
-        if (columnCheckEmail.rows.length > 0) {
-            await pool.query(`ALTER TABLE usuarios RENAME COLUMN email TO correo;`);
-            console.log('Columna "email" renombrada a "correo" en la tabla "usuarios".');
+        if (columnCheckRol.rows.length === 0) {
+            await pool.query(`ALTER TABLE usuarios ADD COLUMN rol VARCHAR(50) DEFAULT 'estudiante';`);
+            console.log('Columna "rol" añadida a la tabla "usuarios".');
         } else {
-            console.log('Columna "email" no encontrada o ya renombrada a "correo".');
+            console.log('Columna "rol" ya existe en la tabla "usuarios".');
         }
 
 
         // Crear usuario administrador si no existe
-        // Modificado: Usando 'correo' en la consulta
         const adminExists = await pool.query("SELECT * FROM usuarios WHERE correo = 'admin@admin.com'");
         if (adminExists.rows.length === 0) {
             const hashedPassword = await bcrypt.hash('admin123', 10);
@@ -168,7 +202,9 @@ app.get('/users', verifyToken, async (req, res) => {
     try {
         const users = await pool.query("SELECT id, nombre, apellido, correo, rol, foto FROM usuarios"); // Incluye 'foto'
         res.status(200).json(users.rows);
-    } catch (err) {
+    }
+    //... (el resto de tus rutas PUT y DELETE están bien)
+    catch (err) {
         console.error('Error al obtener usuarios:', err);
         res.status(500).json({ message: 'Error interno del servidor al obtener usuarios.' });
     }
