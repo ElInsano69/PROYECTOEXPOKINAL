@@ -5,7 +5,6 @@
     <title>Acceso | IT Essentials</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        /* Tu CSS actual va aquí. No he hecho cambios en el CSS. */
         html, body { height: 100%; }
         body { margin: 0; font-family: Arial, sans-serif; min-height: 100vh; background: linear-gradient(135deg, #e0e7ef 0%, #f8fafc 100%);}
         .sidebar { width: 0; min-height: 100vh; position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none;}
@@ -54,11 +53,10 @@
         .acceso-error { color: #c00; margin-top: 10px; font-size: 1em;}
         .acceso-success { color: #080; margin-top: 10px; font-size: 1em;}
         .acceso-switch { margin-top: 18px; color: #002147; cursor: pointer; text-decoration: underline; background: none; border: none; font-size: 1em;}
-        /* Nuevo estilo para el botón "Seguir sin cuenta" */
         .acceso-guest-btn { 
-            margin-top: 10px; /* Un poco de espacio arriba */
+            margin-top: 10px; 
             background: none; 
-            border: 1px solid #002147; /* Borde más sutil */
+            border: 1px solid #002147; 
             color: #002147; 
             padding: 8px 24px; 
             border-radius: 8px; 
@@ -67,7 +65,7 @@
             transition: background 0.2s, color 0.2s, border-color 0.2s;
         }
         .acceso-guest-btn:hover {
-            background: #e6e6e6; /* Un gris claro al pasar el ratón */
+            background: #e6e6e6; 
             color: #001030;
             border-color: #001030;
         }
@@ -205,7 +203,7 @@
         /* Tabla usuarios admin */
         .usuarios-content {
             margin: 40px auto 0 auto;
-            max-width: 600px;
+            max-width: 700px; /* Aumentado para acomodar la nueva columna */
             background: #fff;
             border-radius: 12px;
             box-shadow: 0 4px 16px rgba(0,0,0,0.10);
@@ -225,6 +223,7 @@
             border-bottom: 1px solid #ccc;
             padding: 6px;
             font-size: 1em;
+            text-align: left; /* Alineado a la izquierda para mejor lectura */
         }
         .usuarios-content th {
             background: #f4f6fa;
@@ -243,10 +242,30 @@
             cursor: pointer;
             font-size: 0.85em;
             transition: background 0.2s ease;
+            margin-left: 5px; /* Espacio entre el avatar y el botón */
         }
         .delete-user-btn:hover {
             background: #c0392b; /* Rojo más oscuro */
         }
+        /* Nuevo estilo para los avatares en la tabla de usuarios */
+        .user-table-photo, .user-table-initials {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            object-fit: cover;
+            vertical-align: middle;
+            margin-right: 5px; /* Espacio a la derecha de la foto */
+            border: 1px solid #ddd;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8em;
+            font-weight: bold;
+            background-color: #f0f0f0;
+            color: #555;
+        }
+        .user-table-photo { background-color: #fff; } /* Para cuando es una imagen */
+
         @media (max-width: 600px) {
             header { flex-direction: column; gap: 8px; padding: 16px 0;}
             header img { height: 40px;}
@@ -256,6 +275,16 @@
             .modal-perfil .user-circle, .modal-perfil .user-photo { width: 44px; height: 44px; font-size: 1.2em;}
             .menu-list { width: 80vw; min-width: 140px;}
             .bienvenido-full { font-size: 1.5em; padding: 0 10px;}
+            /* Ajustes para la tabla en móviles */
+            .usuarios-content th, .usuarios-content td {
+                font-size: 0.85em;
+                padding: 4px;
+            }
+            .usuarios-content table {
+                overflow-x: auto; /* Permite scroll horizontal si la tabla es muy ancha */
+                display: block;
+                white-space: nowrap; /* Evita que el contenido de las celdas se envuelva */
+            }
         }
     </style>
 </head>
@@ -343,7 +372,8 @@
                         <th>Nombre</th>
                         <th>Apellido</th>
                         <th>Rol</th>
-                        <th>Acciones</th> </tr>
+                        <th>Acciones</th> 
+                        <th>Foto</th> </tr>
                 </thead>
                 <tbody>
                     </tbody>
@@ -388,40 +418,43 @@
             return initials.toUpperCase();
         }
 
-        function renderAvatar(containerId, nombre, apellido, foto, size, clickHandler = null) {
-            const container = document.getElementById(containerId);
-            if (!container) {
-                console.warn(`Contenedor con ID '${containerId}' no encontrado.`);
+        // Función renderAvatar mejorada para reutilización
+        function renderAvatar(containerElement, nombre, apellido, foto, size, className, clickHandler = null) {
+            if (!containerElement) {
+                console.warn(`Contenedor '${containerElement}' no encontrado.`);
                 return;
             }
-            container.innerHTML = '';
+            containerElement.innerHTML = '';
+            
+            let element;
             if (foto) {
-                const img = document.createElement('img');
-                img.src = foto;
-                img.alt = 'Foto de perfil';
-                img.className = 'user-photo';
-                img.style.width = img.style.height = size + 'px';
-                if (clickHandler) img.onclick = clickHandler;
-                container.appendChild(img);
+                element = document.createElement('img');
+                element.src = foto;
+                element.alt = 'Foto de perfil';
+                element.className = className + ' user-photo'; // Siempre user-photo si es img
             } else {
-                const div = document.createElement('div');
-                div.className = 'user-circle';
-                div.style.width = div.style.height = size + 'px';
-                div.textContent = getInitials(nombre, apellido);
-                if (clickHandler) div.onclick = clickHandler;
-                container.appendChild(div);
+                element = document.createElement('div');
+                element.className = className + ' user-circle'; // Siempre user-circle si es iniciales
+                element.textContent = getInitials(nombre, apellido);
             }
+            
+            element.style.width = element.style.height = size + 'px';
+            if (clickHandler) element.onclick = clickHandler;
+            
+            containerElement.appendChild(element);
         }
 
+        // Modificación de showUserAvatar para usar la nueva renderAvatar
         function showUserAvatar() {
             const nombre = localStorage.getItem('nombre_actual') || '';
             const apellido = localStorage.getItem('apellido_actual') || '';
             const foto = localStorage.getItem('foto_actual') || ''; 
+            const userAvatarContainer = document.getElementById('user-avatar-container');
+
             if (localStorage.getItem('correo_actual') !== 'invitado@temp.com') {
-                renderAvatar('user-avatar-container', nombre, apellido, foto, window.innerWidth < 600 ? 36 : 44, showPerfilModal);
+                renderAvatar(userAvatarContainer, nombre, apellido, foto, window.innerWidth < 600 ? 36 : 44, 'user-circle-header', showPerfilModal);
             } else {
-                const container = document.getElementById('user-avatar-container');
-                if (container) container.innerHTML = '';
+                if (userAvatarContainer) userAvatarContainer.innerHTML = '';
             }
         }
 
@@ -433,7 +466,10 @@
             const nombre = localStorage.getItem('nombre_actual') || '';
             const apellido = localStorage.getItem('apellido_actual') || '';
             const foto = localStorage.getItem('foto_actual') || '';
-            renderAvatar('perfil-avatar-container', nombre, apellido, foto, window.innerWidth < 600 ? 44 : 60);
+            const perfilAvatarContainer = document.getElementById('perfil-avatar-container');
+
+            renderAvatar(perfilAvatarContainer, nombre, apellido, foto, window.innerWidth < 600 ? 44 : 60, 'user-circle-modal');
+            
             document.getElementById('perfil-nombre').textContent = "Nombre: " + (nombre || 'N/A');
             document.getElementById('perfil-apellido').textContent = "Apellido: " + (apellido || 'N/A');
             document.getElementById('perfil-usuario').textContent = "Correo: " + correo;
@@ -506,13 +542,13 @@
             const tbody = document.querySelector('#usuarios-table tbody');
             if (!tbody) return;
 
-            tbody.innerHTML = '<tr><td colspan="6">Cargando usuarios...</td></tr>'; // Actualizado a 6 columnas
+            tbody.innerHTML = '<tr><td colspan="7">Cargando usuarios...</td></tr>'; // Actualizado a 7 columnas
             try {
                 const token = localStorage.getItem('token');
                 const userRole = localStorage.getItem('rol_actual');
                 
                 if (!token || userRole !== 'admin') {
-                    tbody.innerHTML = '<tr><td colspan="6">Acceso denegado. No tienes permisos de administrador.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7">Acceso denegado. No tienes permisos de administrador.</td></tr>';
                     return;
                 }
 
@@ -523,7 +559,7 @@
                 });
                 if (!response.ok) {
                     if (response.status === 403) {
-                        tbody.innerHTML = '<tr><td colspan="6">Acceso denegado. No tienes permisos de administrador.</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="7">Acceso denegado. No tienes permisos de administrador.</td></tr>';
                         return;
                     }
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -532,13 +568,18 @@
                 tbody.innerHTML = ''; 
 
                 if (usuarios.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6">No hay usuarios registrados.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7">No hay usuarios registrados.</td></tr>';
                 } else {
                     usuarios.forEach(usuario => {
                         const tr = document.createElement('tr');
                         // Asegúrate de que el administrador actual no tenga el botón de eliminar
                         const currentUserObj = JSON.parse(localStorage.getItem('user'));
                         const isCurrentUserAdmin = (currentUserObj && currentUserObj.id === usuario.id && usuario.rol === 'admin');
+
+                        const fotoHtmlContainer = document.createElement('td');
+                        fotoHtmlContainer.style.textAlign = 'center'; // Centrar el contenido de la celda de la foto
+                        renderAvatar(fotoHtmlContainer, usuario.nombre, usuario.apellido, usuario.foto, 30, 'user-table');
+
 
                         tr.innerHTML = `<td>${usuario.id}</td>
                                         <td>${usuario.correo}</td>
@@ -547,13 +588,16 @@
                                         <td>${usuario.rol || 'N/A'}</td>
                                         <td>
                                             ${!isCurrentUserAdmin ? `<button class="delete-user-btn" onclick="deleteUser(${usuario.id})">Eliminar</button>` : ''}
-                                        </td>`; // Agregar botón de eliminar
+                                        </td>`; 
+                        
+                        // Añadir la celda de la foto
+                        tr.appendChild(fotoHtmlContainer);
                         tbody.appendChild(tr);
                     });
                 }
             } catch (error) {
                 console.error('Error al cargar usuarios desde el backend:', error);
-                tbody.innerHTML = '<tr><td colspan="6">Error al cargar usuarios. Intenta de nuevo más tarde.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7">Error al cargar usuarios. Intenta de nuevo más tarde.</td></tr>';
             }
         }
 
@@ -672,7 +716,7 @@
                             localStorage.setItem('correo_actual', data.user.correo);
                             localStorage.setItem('nombre_actual', data.user.nombre || data.user.correo.split('@')[0]);
                             localStorage.setItem('apellido_actual', data.user.apellido || '');
-                            localStorage.setItem('foto_actual', data.user.foto || '');
+                            localStorage.setItem('foto_actual', data.user.foto || ''); // Guardar la foto
                             localStorage.setItem('token', data.token);
                             localStorage.setItem('user', JSON.stringify(data.user));
                             localStorage.setItem('rol_actual', data.user.rol);
@@ -703,7 +747,7 @@
                     const password = registerForm.clave.value.trim();
                     const clave2 = registerForm.clave2.value.trim();
                     
-                    let fotoBase64 = ''; 
+                    let fotoBase64 = ''; // Al registrar, la foto puede estar vacía inicialmente
                     
                     registerError.textContent = ''; 
                     registerSuccess.textContent = ''; 
@@ -731,7 +775,7 @@
                             apellido: apellido,
                             correo: correo,
                             password: password,
-                            foto: fotoBase64,
+                            foto: fotoBase64, // Pasa la foto (vacía al registrarse)
                             rol: 'estudiante'
                         };
 
@@ -751,7 +795,7 @@
                                 localStorage.setItem('correo_actual', data.user.correo);
                                 localStorage.setItem('nombre_actual', data.user.nombre || data.user.correo.split('@')[0]);
                                 localStorage.setItem('apellido_actual', data.user.apellido || '');
-                                localStorage.setItem('foto_actual', data.user.foto || '');
+                                localStorage.setItem('foto_actual', data.user.foto || ''); // Guardar la foto
                                 localStorage.setItem('token', data.token);
                                 localStorage.setItem('user', JSON.stringify(data.user));
                                 localStorage.setItem('rol_actual', data.user.rol);
@@ -779,45 +823,65 @@
                 perfilFotoInput.addEventListener('change', function() {
                     const file = this.files[0];
                     if (file) {
+                        // Comprimir o redimensionar la imagen si es muy grande antes de convertir a Base64
+                        const MAX_WIDTH = 200; // Por ejemplo, un ancho máximo para la foto de perfil
                         const reader = new FileReader();
-                        reader.onload = async function(e) {
-                            const fotoBase64 = e.target.result;
-                            const userString = localStorage.getItem('user');
-                            if (!userString) {
-                                alert('No hay usuario logueado para actualizar la foto.');
-                                return;
-                            }
-                            const userId = JSON.parse(userString).id;
-                            const token = localStorage.getItem('token');
-                            const nombre = localStorage.getItem('nombre_actual');
-                            const apellido = localStorage.getItem('apellido_actual');
-                            const correo = localStorage.getItem('correo_actual');
+                        reader.onload = function(e) {
+                            const img = new Image();
+                            img.onload = async function() {
+                                const canvas = document.createElement('canvas');
+                                let width = img.width;
+                                let height = img.height;
 
-                            try {
-                                const response = await fetch(`${API_BASE_URL}/profile`, {
-                                    method: 'PUT',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'Authorization': `Bearer ${token}`
-                                    },
-                                    body: JSON.stringify({ nombre, apellido, correo, foto: fotoBase64 })
-                                });
-
-                                if (response.ok) {
-                                    const data = await response.json();
-                                    localStorage.setItem('foto_actual', data.user.foto);
-                                    localStorage.setItem('user', JSON.stringify(data.user));
-                                    showUserAvatar(); 
-                                    showPerfilModal(); 
-                                    alert('Foto de perfil actualizada con éxito.');
-                                } else {
-                                    const errorData = await response.json();
-                                    alert('Error al actualizar la foto de perfil: ' + (errorData.message || 'Desconocido'));
+                                if (width > MAX_WIDTH) {
+                                    height *= MAX_WIDTH / width;
+                                    width = MAX_WIDTH;
                                 }
-                            } catch (error) {
-                                console.error('Error al subir la foto de perfil:', error);
-                                alert('No se pudo conectar al servidor para actualizar la foto.');
-                            }
+                                canvas.width = width;
+                                canvas.height = height;
+                                const ctx = canvas.getContext('2d');
+                                ctx.drawImage(img, 0, 0, width, height);
+
+                                const fotoBase64 = canvas.toDataURL('image/jpeg', 0.8); // Calidad 0.8
+
+                                const userString = localStorage.getItem('user');
+                                if (!userString) {
+                                    alert('No hay usuario logueado para actualizar la foto.');
+                                    return;
+                                }
+                                const userId = JSON.parse(userString).id;
+                                const token = localStorage.getItem('token');
+                                const nombre = localStorage.getItem('nombre_actual');
+                                const apellido = localStorage.getItem('apellido_actual');
+                                const correo = localStorage.getItem('correo_actual');
+
+                                try {
+                                    const response = await fetch(`${API_BASE_URL}/profile`, {
+                                        method: 'PUT',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'Authorization': `Bearer ${token}`
+                                        },
+                                        body: JSON.stringify({ nombre, apellido, correo, foto: fotoBase64 })
+                                    });
+
+                                    if (response.ok) {
+                                        const data = await response.json();
+                                        localStorage.setItem('foto_actual', data.user.foto); // Asegúrate de guardar la nueva foto
+                                        localStorage.setItem('user', JSON.stringify(data.user)); // Actualiza user completo
+                                        showUserAvatar(); 
+                                        showPerfilModal(); 
+                                        alert('Foto de perfil actualizada con éxito.');
+                                    } else {
+                                        const errorData = await response.json();
+                                        alert('Error al actualizar la foto de perfil: ' + (errorData.message || 'Desconocido'));
+                                    }
+                                } catch (error) {
+                                    console.error('Error al subir la foto de perfil:', error);
+                                    alert('No se pudo conectar al servidor para actualizar la foto.');
+                                }
+                            };
+                            img.src = e.target.result;
                         };
                         reader.readAsDataURL(file);
                     }
@@ -830,7 +894,7 @@
                 localStorage.setItem('correo_actual', 'invitado@temp.com'); 
                 localStorage.setItem('nombre_actual', 'Invitado');
                 localStorage.setItem('apellido_actual', '');
-                localStorage.removeItem('foto_actual'); 
+                localStorage.removeItem('foto_actual'); // Asegurarse de que no haya foto para invitados
                 localStorage.removeItem('token'); 
                 localStorage.removeItem('user'); 
                 localStorage.setItem('rol_actual', 'invitado');
