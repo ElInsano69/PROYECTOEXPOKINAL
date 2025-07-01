@@ -525,24 +525,25 @@
                         body: JSON.stringify({ correo: correo, password: password }) // Asegúrate de que el backend espera 'correo' y 'password'
                     });
 
-                    const result = await response.json();
+                    const data = await response.json();
 
                     if (response.ok) { 
                         localStorage.setItem('logueado', 'si');
-                        localStorage.setItem('correo_actual', result.user.correo); // Cambiado de email_actual a correo_actual
-                        localStorage.setItem('nombre_actual', result.user.nombre || result.user.correo.split('@')[0]);
-                        localStorage.setItem('apellido_actual', result.user.apellido || '');
-                        localStorage.setItem('foto_actual', result.user.foto || ''); // Guarda la foto si el backend la envía
-                        localStorage.setItem('token', result.token); // Guardar el token JWT
+                        localStorage.setItem('correo_actual', data.user.correo); // Cambiado de email_actual a correo_actual
+                        localStorage.setItem('nombre_actual', data.user.nombre || data.user.correo.split('@')[0]);
+                        localStorage.setItem('apellido_actual', data.user.apellido || '');
+                        localStorage.setItem('foto_actual', data.user.foto || ''); // Guarda la foto si el backend la envía
+                        localStorage.setItem('token', data.token); // Guardar el token JWT
+                        localStorage.setItem('user', JSON.stringify(data.user)); // Guardar el objeto user
 
                         loginForm.reset();
-                        mostrarBienvenida(result.user.nombre || result.user.correo.split('@')[0]); 
+                        mostrarBienvenida(data.user.nombre || data.user.correo.split('@')[0]); 
                         setTimeout(() => {
                             updateUI(); 
                         }, 1200);
                         
                     } else { 
-                        loginError.textContent = result.message || 'Credenciales incorrectas. Inténtalo de nuevo.'; // Cambiado de mensaje a message
+                        loginError.textContent = data.message || 'Credenciales incorrectas. Inténtalo de nuevo.'; // Cambiado de mensaje a message
                     }
                 } catch (error) {
                     console.error('Error de conexión con el servidor para login:', error);
@@ -602,9 +603,21 @@
                         const data = await response.json();
 
                         if (response.ok) { 
-                            registerSuccess.textContent = "¡Registro exitoso! Ya puedes iniciar sesión.";
+                            // *** CAMBIO CLAVE AQUÍ: AUTO-LOGIN DESPUÉS DEL REGISTRO ***
+                            localStorage.setItem('logueado', 'si');
+                            localStorage.setItem('correo_actual', data.user.correo);
+                            localStorage.setItem('nombre_actual', data.user.nombre || data.user.correo.split('@')[0]);
+                            localStorage.setItem('apellido_actual', data.user.apellido || '');
+                            localStorage.setItem('foto_actual', data.user.foto || '');
+                            localStorage.setItem('token', data.token); // Guardar el token
+                            localStorage.setItem('user', JSON.stringify(data.user)); // Guardar el objeto user
+
                             registerForm.reset();
-                            document.getElementById('show-login').click(); // Volver al formulario de login
+                            mostrarBienvenida(data.user.nombre || data.user.correo.split('@')[0]);
+                            setTimeout(() => {
+                                updateUI(); // Actualizar la UI para mostrar la página principal
+                            }, 1200);
+                            // FIN DEL CAMBIO CLAVE
                         } else { 
                             registerError.textContent = data.message || 'Error en el registro. Intenta con otro correo.'; // Cambiado de mensaje a message
                         }
@@ -630,15 +643,13 @@
                 }
             });
 
-            // Perfil - Cambiar foto (Solo actualiza localmente, no en la DB en esta versión)
-            // Para que la foto se persista en el backend, necesitarías una API de actualización
-            // que reciba la nueva foto y la guarde para el usuario actual.
-            perfilFotoInput.addEventListener('change', async function() { // Añadido async
+            // Perfil - Cambiar foto (Ahora actualiza en la DB)
+            perfilFotoInput.addEventListener('change', async function() {
                 const file = perfilFotoInput.files[0];
                 if (!file) return;
 
                 const reader = new FileReader();
-                reader.onload = async function(ev) { // Añadido async
+                reader.onload = async function(ev) {
                     const newFotoBase64 = ev.target.result;
                     const token = localStorage.getItem('token');
                     const user = JSON.parse(localStorage.getItem('user'));
@@ -678,16 +689,15 @@
                 reader.readAsDataURL(file);
             });
 
-
             // Logout
             window.logout = function() {
                 localStorage.removeItem('logueado');
-                localStorage.removeItem('correo_actual'); // Cambiado de email_actual a correo_actual
+                localStorage.removeItem('correo_actual');
                 localStorage.removeItem('nombre_actual');
                 localStorage.removeItem('apellido_actual');
-                localStorage.removeItem('foto_actual'); // Remover la foto al desloguear
-                localStorage.removeItem('token'); // Remover el token
-                localStorage.removeItem('user'); // Remover el objeto user
+                localStorage.removeItem('foto_actual');
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
                 
                 updateUI();
                 loginForm.reset();

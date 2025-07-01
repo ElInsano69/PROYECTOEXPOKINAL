@@ -177,10 +177,31 @@ app.post('/register', async (req, res) => {
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
         const result = await pool.query(
-            "INSERT INTO usuarios (nombre, apellido, correo, password, rol, foto) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *", // Corregido: #6 a $6
+            "INSERT INTO usuarios (nombre, apellido, correo, password, rol, foto) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
             [nombre, apellido, correo, hashedPassword, rol || 'estudiante', foto || null]
         );
-        res.status(201).json({ message: 'Usuario registrado con éxito', user: result.rows[0] });
+
+        const newUser = result.rows[0];
+
+        // Generar token JWT para el nuevo usuario
+        const token = jwt.sign(
+            { id: newUser.id, role: newUser.rol },
+            process.env.JWT_SECRET, // Asegúrate de que esta variable de entorno esté configurada en Render
+            { expiresIn: '1h' }
+        );
+
+        res.status(201).json({
+            message: 'Usuario registrado con éxito',
+            token, // Incluir el token en la respuesta
+            user: {
+                id: newUser.id,
+                nombre: newUser.nombre,
+                apellido: newUser.apellido,
+                correo: newUser.correo,
+                rol: newUser.rol,
+                foto: newUser.foto
+            }
+        });
     } catch (err) {
         console.error('Error al registrar usuario:', err);
         // Manejo de error específico para correo duplicado
