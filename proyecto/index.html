@@ -5,6 +5,7 @@
     <title>Acceso | IT Essentials</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
+        /* Tu CSS incrustado (igual que antes) */
         html, body { height: 100%; }
         body { margin: 0; font-family: Arial, sans-serif; min-height: 100vh; background: linear-gradient(135deg, #e0e7ef 0%, #f8fafc 100%);}
         .sidebar { width: 0; min-height: 100vh; position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none;}
@@ -203,7 +204,7 @@
         /* Tabla usuarios admin */
         .usuarios-content {
             margin: 40px auto 0 auto;
-            max-width: 700px; /* Aumentado para acomodar la nueva columna */
+            max-width: 700px;
             background: #fff;
             border-radius: 12px;
             box-shadow: 0 4px 16px rgba(0,0,0,0.10);
@@ -223,7 +224,7 @@
             border-bottom: 1px solid #ccc;
             padding: 6px;
             font-size: 1em;
-            text-align: left; /* Alineado a la izquierda para mejor lectura */
+            text-align: left;
         }
         .usuarios-content th {
             background: #f4f6fa;
@@ -232,9 +233,8 @@
         .usuarios-content tr:last-child td {
             border-bottom: none;
         }
-        /* Estilo para el botón de eliminar usuario */
         .delete-user-btn {
-            background: #e74c3c; /* Rojo */
+            background: #e74c3c;
             color: white;
             border: none;
             padding: 4px 8px;
@@ -242,19 +242,18 @@
             cursor: pointer;
             font-size: 0.85em;
             transition: background 0.2s ease;
-            margin-left: 5px; /* Espacio entre el avatar y el botón */
+            margin-left: 5px;
         }
         .delete-user-btn:hover {
-            background: #c0392b; /* Rojo más oscuro */
+            background: #c0392b;
         }
-        /* Nuevo estilo para los avatares en la tabla de usuarios */
         .user-table-photo, .user-table-initials {
             width: 30px;
             height: 30px;
             border-radius: 50%;
             object-fit: cover;
             vertical-align: middle;
-            margin-right: 5px; /* Espacio a la derecha de la foto */
+            margin-right: 5px;
             border: 1px solid #ddd;
             display: inline-flex;
             align-items: center;
@@ -264,7 +263,7 @@
             background-color: #f0f0f0;
             color: #555;
         }
-        .user-table-photo { background-color: #fff; } /* Para cuando es una imagen */
+        .user-table-photo { background-color: #fff; }
 
         @media (max-width: 600px) {
             header { flex-direction: column; gap: 8px; padding: 16px 0;}
@@ -275,15 +274,14 @@
             .modal-perfil .user-circle, .modal-perfil .user-photo { width: 44px; height: 44px; font-size: 1.2em;}
             .menu-list { width: 80vw; min-width: 140px;}
             .bienvenido-full { font-size: 1.5em; padding: 0 10px;}
-            /* Ajustes para la tabla en móviles */
             .usuarios-content th, .usuarios-content td {
                 font-size: 0.85em;
                 padding: 4px;
             }
             .usuarios-content table {
-                overflow-x: auto; /* Permite scroll horizontal si la tabla es muy ancha */
+                overflow-x: auto;
                 display: block;
-                white-space: nowrap; /* Evita que el contenido de las celdas se envuelva */
+                white-space: nowrap;
             }
         }
     </style>
@@ -431,10 +429,10 @@
                 element = document.createElement('img');
                 element.src = foto;
                 element.alt = 'Foto de perfil';
-                element.className = className + ' user-photo'; // Siempre user-photo si es img
+                element.className = className + ' user-photo';
             } else {
                 element = document.createElement('div');
-                element.className = className + ' user-circle'; // Siempre user-circle si es iniciales
+                element.className = className + ' user-circle';
                 element.textContent = getInitials(nombre, apellido);
             }
             
@@ -491,10 +489,10 @@
         }
 
         // *** FUNCIONES QUE INTERACTÚAN CON EL BACKEND ***
+        // ¡¡¡ IMPORTANTE: ACTUALIZA ESTA URL CON LA DE TU SERVICIO DE BACKEND EN RENDER !!!
+        // Usar la URL de tu servicio de backend en Render (ej: https://tu-nombre-backend.onrender.com)
+        const API_BASE_URL = 'https://tu-nombre-de-servicio-backend.onrender.com'; 
 
-        const API_BASE_URL = 'https://proyectoexpokinal.onrender.com';
-
-        // Nueva función para eliminar usuario
         async function deleteUser(userId) {
             if (!confirm('¿Estás seguro de que quieres eliminar este usuario?')) {
                 return;
@@ -509,7 +507,6 @@
                 return;
             }
 
-            // Evitar que el administrador se elimine a sí mismo
             const currentUserObj = JSON.parse(localStorage.getItem('user'));
             if (currentUserObj && currentUserObj.id === userId) {
                 alert('No puedes eliminar tu propia cuenta de administrador.');
@@ -526,7 +523,7 @@
 
                 if (response.ok) {
                     alert('Usuario eliminado con éxito.');
-                    cargarUsuariosDesdeBackend(); // Recargar la tabla después de eliminar
+                    cargarUsuariosDesdeBackend();
                 } else {
                     const errorData = await response.json();
                     alert('Error al eliminar usuario: ' + (errorData.message || 'Desconocido'));
@@ -537,12 +534,11 @@
             }
         }
 
-
         async function cargarUsuariosDesdeBackend() {
             const tbody = document.querySelector('#usuarios-table tbody');
             if (!tbody) return;
 
-            tbody.innerHTML = '<tr><td colspan="7">Cargando usuarios...</td></tr>'; // Actualizado a 7 columnas
+            tbody.innerHTML = '<tr><td colspan="7">Cargando usuarios...</td></tr>';
             try {
                 const token = localStorage.getItem('token');
                 const userRole = localStorage.getItem('rol_actual');
@@ -552,7 +548,7 @@
                     return;
                 }
 
-                const response = await fetch(`${API_BASE_URL}/users`, {
+                const response = await fetch(`${API_BASE_URL}/api/users`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -572,12 +568,11 @@
                 } else {
                     usuarios.forEach(usuario => {
                         const tr = document.createElement('tr');
-                        // Asegúrate de que el administrador actual no tenga el botón de eliminar
                         const currentUserObj = JSON.parse(localStorage.getItem('user'));
                         const isCurrentUserAdmin = (currentUserObj && currentUserObj.id === usuario.id && usuario.rol === 'admin');
 
                         const fotoHtmlContainer = document.createElement('td');
-                        fotoHtmlContainer.style.textAlign = 'center'; // Centrar el contenido de la celda de la foto
+                        fotoHtmlContainer.style.textAlign = 'center';
                         renderAvatar(fotoHtmlContainer, usuario.nombre, usuario.apellido, usuario.foto, 30, 'user-table');
 
 
@@ -589,8 +584,7 @@
                                         <td>
                                             ${!isCurrentUserAdmin ? `<button class="delete-user-btn" onclick="deleteUser(${usuario.id})">Eliminar</button>` : ''}
                                         </td>`; 
-                        
-                        // Añadir la celda de la foto
+                                        
                         tr.appendChild(fotoHtmlContainer);
                         tbody.appendChild(tr);
                     });
@@ -650,14 +644,10 @@
             }
         }
 
-
-        // --- Función para cerrar sesión ---
         function logout() {
             localStorage.clear();
-            
             const menu = document.getElementById('menu-list');
             if (menu) menu.classList.remove('show'); 
-
             updateUI(); 
             closePerfilModal(); 
         }
@@ -683,230 +673,130 @@
             document.getElementById('show-login').onclick = function() {
                 registerForm.style.display = 'none';
                 loginForm.style.display = '';
-                registerError.textContent = '';
-                registerSuccess.textContent = '';
                 loginError.textContent = '';
+                registerSuccess.textContent = '';
+                registerError.textContent = '';
             };
 
-            updateUI();
+            loginForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                loginError.textContent = '';
+                const email = loginForm.email.value;
+                const clave = loginForm.clave.value;
 
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/login`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ email, clave })
+                    });
+                    const data = await response.json();
 
-            // *** LOGICA DE LOGIN CON BACKEND ***
-            if (loginForm) { 
-                loginForm.addEventListener('submit', async function(e) {
-                    e.preventDefault();
-                    const correo = loginForm.email.value.trim();
-                    const password = loginForm.clave.value.trim();
+                    if (response.ok) {
+                        localStorage.setItem('token', data.token);
+                        localStorage.setItem('logueado', 'si');
+                        localStorage.setItem('correo_actual', data.user.correo);
+                        localStorage.setItem('nombre_actual', data.user.nombre);
+                        localStorage.setItem('apellido_actual', data.user.apellido);
+                        localStorage.setItem('rol_actual', data.user.rol);
+                        localStorage.setItem('foto_actual', data.user.foto || '');
+                        localStorage.setItem('user', JSON.stringify(data.user));
 
-                    loginError.textContent = ''; 
-
-                    try {
-                        const response = await fetch(`${API_BASE_URL}/login`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ correo: correo, password: password })
-                        });
-
-                        const data = await response.json();
-
-                        if (response.ok) { 
-                            localStorage.setItem('logueado', 'si');
-                            localStorage.setItem('correo_actual', data.user.correo);
-                            localStorage.setItem('nombre_actual', data.user.nombre || data.user.correo.split('@')[0]);
-                            localStorage.setItem('apellido_actual', data.user.apellido || '');
-                            localStorage.setItem('foto_actual', data.user.foto || ''); // Guardar la foto
-                            localStorage.setItem('token', data.token);
-                            localStorage.setItem('user', JSON.stringify(data.user));
-                            localStorage.setItem('rol_actual', data.user.rol);
-
-                            loginForm.reset();
-                            mostrarBienvenida(data.user.nombre || data.user.correo.split('@')[0]); 
-                            setTimeout(() => {
-                                updateUI(); 
-                            }, 1200);
-                            
-                        } else { 
-                            loginError.textContent = data.message || 'Credenciales incorrectas. Inténtalo de nuevo.';
-                        }
-                    } catch (error) {
-                        console.error('Error de conexión con el servidor para login:', error);
-                        loginError.textContent = 'No se pudo conectar al servidor. Asegúrate de que el servidor Node.js esté corriendo.';
+                        mostrarBienvenida(data.user.nombre);
+                        updateUI();
+                    } else {
+                        loginError.textContent = data.message || 'Error en el login';
                     }
-                });
-            }
+                } catch (error) {
+                    console.error('Error de red o servidor:', error);
+                    loginError.textContent = 'Error de conexión. Intenta de nuevo.';
+                }
+            });
 
-            // *** LOGICA DE REGISTRO CON BACKEND ***
-            if (registerForm) { 
-                registerForm.addEventListener('submit', async function(e) {
-                    e.preventDefault();
-                    const nombre = registerForm.nombre.value.trim();
-                    const apellido = registerForm.apellido.value.trim();
-                    const correo = registerForm.email.value.trim();
-                    const password = registerForm.clave.value.trim();
-                    const clave2 = registerForm.clave2.value.trim();
-                    
-                    let fotoBase64 = ''; // Al registrar, la foto puede estar vacía inicialmente
-                    
-                    registerError.textContent = ''; 
-                    registerSuccess.textContent = ''; 
+            registerForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                registerError.textContent = '';
+                registerSuccess.textContent = '';
 
-                    if (!nombre || !apellido || !correo || !password || !clave2) {
-                        registerError.textContent = "Completa todos los campos obligatorios.";
-                        return;
+                const nombre = registerForm.nombre.value;
+                const apellido = registerForm.apellido.value;
+                const email = registerForm.email.value;
+                const clave = registerForm.clave.value;
+                const clave2 = registerForm.clave2.value;
+
+                if (clave !== clave2) {
+                    registerError.textContent = 'Las contraseñas no coinciden.';
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/register`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ nombre, apellido, email, clave })
+                    });
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        registerSuccess.textContent = 'Registro exitoso. Ahora puedes iniciar sesión.';
+                        registerForm.reset();
+                        setTimeout(() => {
+                            document.getElementById('show-login').click();
+                        }, 2000);
+                    } else {
+                        registerError.textContent = data.message || 'Error en el registro';
                     }
-                    if (password.length < 6) {
-                        registerError.textContent = "La contraseña debe tener al menos 6 caracteres.";
-                        return;
-                    }
-                    if (password !== clave2) {
-                        registerError.textContent = "Las contraseñas no coinciden.";
-                        return;
-                    }
-                    if (!/\S+@\S+\.\S+/.test(correo)) {
-                        registerError.textContent = "Por favor, ingresa un formato de correo válido.";
-                        return;
-                    }
+                } catch (error) {
+                    console.error('Error de red o servidor:', error);
+                    registerError.textContent = 'Error de conexión. Intenta de nuevo.';
+                }
+            });
 
-                    const processRegistration = async () => {
-                        const userData = { 
-                            nombre: nombre,
-                            apellido: apellido,
-                            correo: correo,
-                            password: password,
-                            foto: fotoBase64, // Pasa la foto (vacía al registrarse)
-                            rol: 'estudiante'
-                        };
-
-                        try {
-                            const response = await fetch(`${API_BASE_URL}/register`, { 
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify(userData)
-                            });
-
-                            const data = await response.json();
-
-                            if (response.ok) { 
-                                localStorage.setItem('logueado', 'si');
-                                localStorage.setItem('correo_actual', data.user.correo);
-                                localStorage.setItem('nombre_actual', data.user.nombre || data.user.correo.split('@')[0]);
-                                localStorage.setItem('apellido_actual', data.user.apellido || '');
-                                localStorage.setItem('foto_actual', data.user.foto || ''); // Guardar la foto
-                                localStorage.setItem('token', data.token);
-                                localStorage.setItem('user', JSON.stringify(data.user));
-                                localStorage.setItem('rol_actual', data.user.rol);
-
-                                registerForm.reset();
-                                mostrarBienvenida(data.user.nombre || data.user.correo.split('@')[0]);
-                                setTimeout(() => {
-                                    updateUI();
-                                }, 1200);
-                            } else { 
-                                registerError.textContent = data.message || 'Error en el registro. Intenta con otro correo.';
-                            }
-                        } catch (error) {
-                            console.error('Error de conexión con el servidor para registro:', error);
-                            registerError.textContent = 'No se pudo conectar al servidor. Asegúrate de que el servidor Node.js esté corriendo.';
-                        }
-                    };
-
-                    processRegistration(); 
-                });
-            }
-
-            // Lógica para actualizar foto de perfil
-            if (perfilFotoInput) { 
-                perfilFotoInput.addEventListener('change', function() {
+            if (perfilFotoInput) {
+                perfilFotoInput.addEventListener('change', async function() {
                     const file = this.files[0];
-                    if (file) {
-                        // Comprimir o redimensionar la imagen si es muy grande antes de convertir a Base64
-                        const MAX_WIDTH = 200; // Por ejemplo, un ancho máximo para la foto de perfil
-                        const reader = new FileReader();
-                        reader.onload = function(e) {
-                            const img = new Image();
-                            img.onload = async function() {
-                                const canvas = document.createElement('canvas');
-                                let width = img.width;
-                                let height = img.height;
+                    if (!file) return;
 
-                                if (width > MAX_WIDTH) {
-                                    height *= MAX_WIDTH / width;
-                                    width = MAX_WIDTH;
-                                }
-                                canvas.width = width;
-                                canvas.height = height;
-                                const ctx = canvas.getContext('2d');
-                                ctx.drawImage(img, 0, 0, width, height);
-
-                                const fotoBase64 = canvas.toDataURL('image/jpeg', 0.8); // Calidad 0.8
-
-                                const userString = localStorage.getItem('user');
-                                if (!userString) {
-                                    alert('No hay usuario logueado para actualizar la foto.');
-                                    return;
-                                }
-                                const userId = JSON.parse(userString).id;
-                                const token = localStorage.getItem('token');
-                                const nombre = localStorage.getItem('nombre_actual');
-                                const apellido = localStorage.getItem('apellido_actual');
-                                const correo = localStorage.getItem('correo_actual');
-
-                                try {
-                                    const response = await fetch(`${API_BASE_URL}/profile`, {
-                                        method: 'PUT',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                            'Authorization': `Bearer ${token}`
-                                        },
-                                        body: JSON.stringify({ nombre, apellido, correo, foto: fotoBase64 })
-                                    });
-
-                                    if (response.ok) {
-                                        const data = await response.json();
-                                        localStorage.setItem('foto_actual', data.user.foto); // Asegúrate de guardar la nueva foto
-                                        localStorage.setItem('user', JSON.stringify(data.user)); // Actualiza user completo
-                                        showUserAvatar(); 
-                                        showPerfilModal(); 
-                                        alert('Foto de perfil actualizada con éxito.');
-                                    } else {
-                                        const errorData = await response.json();
-                                        alert('Error al actualizar la foto de perfil: ' + (errorData.message || 'Desconocido'));
-                                    }
-                                } catch (error) {
-                                    console.error('Error al subir la foto de perfil:', error);
-                                    alert('No se pudo conectar al servidor para actualizar la foto.');
-                                }
-                            };
-                            img.src = e.target.result;
-                        };
-                        reader.readAsDataURL(file);
-                    }
+                    alert('La carga de fotos aún no está completamente implementada. Debes integrar un servicio de almacenamiento de imágenes.');
                 });
             }
 
-            // *** LOGICA DE "SEGUIR SIN CUENTA" ***
-            function handleGuestLogin() {
-                localStorage.setItem('logueado', 'si');
-                localStorage.setItem('correo_actual', 'invitado@temp.com'); 
-                localStorage.setItem('nombre_actual', 'Invitado');
-                localStorage.setItem('apellido_actual', '');
-                localStorage.removeItem('foto_actual'); // Asegurarse de que no haya foto para invitados
-                localStorage.removeItem('token'); 
-                localStorage.removeItem('user'); 
-                localStorage.setItem('rol_actual', 'invitado');
+            if (guestLoginBtn) {
+                guestLoginBtn.addEventListener('click', () => {
+                    localStorage.setItem('logueado', 'si');
+                    localStorage.setItem('correo_actual', 'invitado@temp.com');
+                    localStorage.setItem('nombre_actual', 'Invitado');
+                    localStorage.setItem('apellido_actual', '');
+                    localStorage.setItem('rol_actual', 'invitado');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('foto_actual');
+                    localStorage.removeItem('user');
 
-                mostrarBienvenida('Invitado'); 
-                setTimeout(() => {
-                    updateUI(); 
-                }, 1200); 
+                    mostrarBienvenida('Invitado');
+                    updateUI();
+                });
+            }
+            if (guestLoginBtnRegister) {
+                guestLoginBtnRegister.addEventListener('click', () => {
+                    localStorage.setItem('logueado', 'si');
+                    localStorage.setItem('correo_actual', 'invitado@temp.com');
+                    localStorage.setItem('nombre_actual', 'Invitado');
+                    localStorage.setItem('apellido_actual', '');
+                    localStorage.setItem('rol_actual', 'invitado');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('foto_actual');
+                    localStorage.removeItem('user');
+
+                    mostrarBienvenida('Invitado');
+                    updateUI();
+                });
             }
 
-            if (guestLoginBtn) guestLoginBtn.addEventListener('click', handleGuestLogin);
-            if (guestLoginBtnRegister) guestLoginBtnRegister.addEventListener('click', handleGuestLogin);
+            updateUI();
         });
     </script>
 </body>
