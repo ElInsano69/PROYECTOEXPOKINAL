@@ -27,8 +27,10 @@ const verifyToken = (req, res, next) => {
     if (!token) {
         return res.status(403).json({ message: 'Token no proporcionado.' });
     }
+    // Asegúrate de que process.env.JWT_SECRET esté definido en Render
     jwt.verify(token.split(' ')[1], process.env.JWT_SECRET, (err, decoded) => {
         if (err) {
+            console.error('Error al verificar token:', err); // Log para depuración
             return res.status(500).json({ message: 'Fallo al autenticar el token.' });
         }
         req.userId = decoded.id;
@@ -41,29 +43,21 @@ const verifyToken = (req, res, next) => {
 async function initializeDb() {
     try {
         // Asegúrate de que la tabla base 'usuarios' existe con las columnas principales
+        // Usamos 'temp_correo_col' para evitar conflictos si 'correo' o 'email' ya existen
         await pool.query(`
             CREATE TABLE IF NOT EXISTS usuarios (
                 id SERIAL PRIMARY KEY,
                 nombre VARCHAR(255) NOT NULL,
                 apellido VARCHAR(255) NOT NULL,
-                -- Inicialmente usa 'email' si no sabemos el estado
-                email_or_correo VARCHAR(255) UNIQUE NOT NULL, 
+                temp_correo_col VARCHAR(255) UNIQUE, -- Columna temporal para el correo
                 password VARCHAR(255) NOT NULL,
-                rol VARCHAR(50), -- rol puede ser null al inicio, luego se verifica
-                foto VARCHAR(255) -- foto puede ser null al inicio, luego se verifica
+                rol VARCHAR(50), 
+                foto VARCHAR(255) 
             );
         `);
         console.log('Tabla "usuarios" verificada o creada.');
 
-        // Verificar y renombrar 'email' a 'correo' si existe
-        const columnCheckEmail = await pool.query(`
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_name = 'usuarios' AND column_name = 'email_or_correo' AND data_type = 'character varying';
-        `);
-        // Si la columna 'email_or_correo' existe, y es realmente 'email', la renombramos.
-        // Esto es un poco más complejo porque si ya la renombró antes, no queremos otro ALTER.
-        // La forma más segura es verificar si 'correo' no existe y 'email' existe.
+        // Lógica para asegurar que la columna 'correo' exista y sea la correcta
         const correoExists = await pool.query(`
             SELECT column_name
             FROM information_schema.columns
@@ -74,17 +68,59 @@ async function initializeDb() {
             FROM information_schema.columns
             WHERE table_name = 'usuarios' AND column_name = 'email';
         `);
+        const tempCorreoColExists = await pool.query(`
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'usuarios' AND column_name = 'temp_correo_col';
+        `);
 
-        if (emailExists.rows.length > 0 && correoExists.rows.length === 0) {
+        if (tempCorreoColExists.rows.length > 0 && correoExists.rows.length === 0 && emailExists.rows.length === 0) {
+            // Si solo existe la temporal y no 'correo' ni 'email', renómbrala
+            await pool.query(`ALTER TABLE usuarios RENAME COLUMN temp_correo_col TO correo;`);
+            console.log('Columna "temp_correo_col" renombrada a "correo".');
+        } else if (emailExists.rows.length > 0 && correoExists.rows.length === 0) {
+            // Si 'email' existe y 'correo' no, renombra 'email' a 'correo'
             await pool.query(`ALTER TABLE usuarios RENAME COLUMN email TO correo;`);
             console.log('Columna "email" renombrada a "correo" en la tabla "usuarios".');
+            // Si temp_correo_col también existía, elimínala para limpiar
+            if (tempCorreoColExists.rows.length > 0) {
+                await pool.query(`ALTER TABLE usuarios DROP COLUMN temp_correo_col;`);
+                console.log('Columna "temp_correo_col" eliminada.');
+            }
         } else if (correoExists.rows.length > 0) {
             console.log('Columna "correo" ya existe en la tabla "usuarios".');
+            // Si 'correo' ya existe, y la temporal también, elimina la temporal
+            if (tempCorreoColExists.rows.length > 0) {
+                await pool.query(`ALTER TABLE usuarios DROP COLUMN temp_correo_col;`);
+                console.log('Columna "temp_correo_col" eliminada.');
+            }
+            // Si 'email' también existe, elimínala si no se ha renombrado
+            if (emailExists.rows.length > 0) {
+                 await pool.query(`ALTER TABLE usuarios DROP COLUMN email;`);
+                 console.log('Columna "email" eliminada (ya existe "correo").');
+            }
         } else {
-             // Si ninguna existe, y la tabla se creó con email_or_correo, renómbrala a correo
-             // Esto cubre el caso donde la tabla se crea con email_or_correo y necesitamos la 'correo' final
-             await pool.query(`ALTER TABLE usuarios RENAME COLUMN email_or_correo TO correo;`);
-             console.log('Columna inicial renombrada a "correo".');
+            // Si por alguna razón ninguna existe, y no se creó con temp_correo_col, la añade
+            await pool.query(`ALTER TABLE usuarios ADD COLUMN correo VARCHAR(255) UNIQUE NOT NULL DEFAULT 'default@email.com';`);
+            console.log('Columna "correo" añadida a la tabla "usuarios" con un valor por defecto.');
+            // Eliminar la columna temporal si se creó pero no se renombró
+            if (tempCorreoColExists.rows.length > 0) {
+                await pool.query(`ALTER TABLE usuarios DROP COLUMN temp_correo_col;`);
+                console.log('Columna "temp_correo_col" eliminada.');
+            }
+        }
+        // Asegurar que la columna 'correo' sea NOT NULL y UNIQUE
+        // Esto solo se ejecutará si la columna ya existe y no tiene estas restricciones
+        try {
+            await pool.query(`ALTER TABLE usuarios ALTER COLUMN correo SET NOT NULL;`);
+            await pool.query(`ALTER TABLE usuarios ADD CONSTRAINT unique_correo UNIQUE (correo);`);
+            console.log('Restricciones NOT NULL y UNIQUE añadidas a la columna "correo".');
+        } catch (constraintErr) {
+            if (constraintErr.code === '42P07' || constraintErr.code === '42710') { // 42P07: duplicate_object, 42710: duplicate_constraint
+                console.log('Restricciones NOT NULL y/o UNIQUE ya existen para "correo".');
+            } else {
+                console.warn('Advertencia al añadir restricciones a "correo":', constraintErr.message);
+            }
         }
 
 
@@ -116,7 +152,6 @@ async function initializeDb() {
             console.log('Columna "rol" ya existe en la tabla "usuarios".');
         }
 
-
         // Crear usuario administrador si no existe
         const adminExists = await pool.query("SELECT * FROM usuarios WHERE correo = 'admin@admin.com'");
         if (adminExists.rows.length === 0) {
@@ -136,20 +171,22 @@ async function initializeDb() {
 // Llama a la función de inicialización al iniciar el servidor
 initializeDb();
 
-// ... (resto de tus rutas, como /register, /login, /profile, etc.) ...
-
 // Ruta de registro de usuario
 app.post('/register', async (req, res) => {
-    const { nombre, apellido, correo, password, rol, foto } = req.body; // Asegúrate de que 'foto' se reciba aquí
+    const { nombre, apellido, correo, password, rol, foto } = req.body;
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
         const result = await pool.query(
             "INSERT INTO usuarios (nombre, apellido, correo, password, rol, foto) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
-            [nombre, apellido, correo, hashedPassword, rol || 'estudiante', foto || null] // Asigna null si no se proporciona foto
+            [nombre, apellido, correo, hashedPassword, rol || 'estudiante', foto || null]
         );
         res.status(201).json({ message: 'Usuario registrado con éxito', user: result.rows[0] });
     } catch (err) {
         console.error('Error al registrar usuario:', err);
+        // Manejo de error específico para correo duplicado
+        if (err.code === '23505') { // Código de error de PostgreSQL para violación de restricción UNIQUE
+            return res.status(409).json({ message: 'El correo electrónico ya está registrado.' });
+        }
         res.status(500).json({ message: 'Error interno del servidor al registrar usuario.' });
     }
 });
@@ -171,7 +208,7 @@ app.post('/login', async (req, res) => {
         // Generar token JWT
         const token = jwt.sign(
             { id: user.rows[0].id, role: user.rows[0].rol },
-            process.env.JWT_SECRET,
+            process.env.JWT_SECRET, // Asegúrate de que esta variable de entorno esté configurada en Render
             { expiresIn: '1h' }
         );
 
@@ -185,7 +222,7 @@ app.post('/login', async (req, res) => {
                 apellido: user.rows[0].apellido,
                 correo: user.rows[0].correo,
                 rol: user.rows[0].rol,
-                foto: user.rows[0].foto // Asegúrate de incluir la columna 'foto' aquí
+                foto: user.rows[0].foto
             }
         });
     } catch (err) {
@@ -200,11 +237,9 @@ app.get('/users', verifyToken, async (req, res) => {
         return res.status(403).json({ message: 'Acceso denegado. Solo administradores.' });
     }
     try {
-        const users = await pool.query("SELECT id, nombre, apellido, correo, rol, foto FROM usuarios"); // Incluye 'foto'
+        const users = await pool.query("SELECT id, nombre, apellido, correo, rol, foto FROM usuarios");
         res.status(200).json(users.rows);
-    }
-    //... (el resto de tus rutas PUT y DELETE están bien)
-    catch (err) {
+    } catch (err) {
         console.error('Error al obtener usuarios:', err);
         res.status(500).json({ message: 'Error interno del servidor al obtener usuarios.' });
     }
@@ -213,7 +248,7 @@ app.get('/users', verifyToken, async (req, res) => {
 // Ruta para obtener perfil de usuario
 app.get('/profile', verifyToken, async (req, res) => {
     try {
-        const user = await pool.query("SELECT id, nombre, apellido, correo, rol, foto FROM usuarios WHERE id = $1", [req.userId]); // Incluye 'foto'
+        const user = await pool.query("SELECT id, nombre, apellido, correo, rol, foto FROM usuarios WHERE id = $1", [req.userId]);
         if (user.rows.length === 0) {
             return res.status(404).json({ message: 'Usuario no encontrado.' });
         }
@@ -226,11 +261,17 @@ app.get('/profile', verifyToken, async (req, res) => {
 
 // Ruta para actualizar perfil de usuario
 app.put('/profile', verifyToken, async (req, res) => {
-    const { nombre, apellido, correo, foto } = req.body; // Asegúrate de que 'foto' se reciba aquí
+    const { nombre, apellido, correo, foto } = req.body;
     try {
+        // Asegúrate de que el correo no se cambie a uno que ya existe, a menos que sea el mismo del usuario actual
+        const existingUser = await pool.query("SELECT id FROM usuarios WHERE correo = $1 AND id != $2", [correo, req.userId]);
+        if (existingUser.rows.length > 0) {
+            return res.status(409).json({ message: 'El correo electrónico ya está en uso por otro usuario.' });
+        }
+
         const result = await pool.query(
             "UPDATE usuarios SET nombre = $1, apellido = $2, correo = $3, foto = $4 WHERE id = $5 RETURNING *",
-            [nombre, apellido, correo, foto, req.userId] // Asegúrate de actualizar 'foto'
+            [nombre, apellido, correo, foto, req.userId]
         );
         res.status(200).json({ message: 'Perfil actualizado con éxito', user: result.rows[0] });
     } catch (err) {
