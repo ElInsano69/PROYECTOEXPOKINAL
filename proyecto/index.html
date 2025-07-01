@@ -7,7 +7,7 @@
     <style>
         /* Tu CSS actual va aquí. No he hecho cambios en el CSS. */
         html, body { height: 100%; }
-        body { margin: 0; font-family: Arial, sans-serif; min-height: 100vh; background: linear-gradient(135deg, #e0e7ef 0%, #f8fafc 100%);}
+        body { margin: 0; font-family: Arial, sans-serif; min-height: 10vh; background: linear-gradient(135deg, #e0e7ef 0%, #f8fafc 100%);}
         .sidebar { width: 0; min-height: 100vh; position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none;}
         .menu-icon { margin-top: 22px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; z-index: 201; position: fixed; left: 16px; top: 22px; pointer-events: auto;}
         .bar { width: 28px; height: 4px; background: #fff; border-radius: 2px; transition: background 0.2s;}
@@ -264,6 +264,7 @@
             <a href="/curso8.html"><span class="icon">🔧</span>Curso 8</a>
             <a href="/curso9.html"><span class="icon">🔌</span>Curso 9</a>
             <a href="/curso10.html"><span class="icon">🔒</span>Curso 10</a>
+            <a href="#" id="admin-dashboard-link" style="display:none;"><span class="icon">⚙️</span>Administración</a>
         </nav>
     </div>
     <div class="main-content">
@@ -327,10 +328,10 @@
                         <th>Email</th>
                         <th>Nombre</th>
                         <th>Apellido</th>
-                    </tr>
+                        <th>Rol</th> </tr>
                 </thead>
                 <tbody>
-                </tbody>
+                    </tbody>
             </table>
         </section>
     </div>
@@ -365,7 +366,7 @@
 
         // Utilidades
         function getInitials(nombre, apellido) {
-            if (!nombre && !apellido) return "?"; // Fallback si ambos son nulos/vacíos
+            if (!nombre && !apellido) return "?";
             let initials = "";
             if (nombre) initials += nombre[0];
             if (apellido) initials += apellido[0];
@@ -378,7 +379,7 @@
                 console.warn(`Contenedor con ID '${containerId}' no encontrado.`);
                 return;
             }
-            container.innerHTML = ''; // Limpiar contenido existente
+            container.innerHTML = '';
             if (foto) {
                 const img = document.createElement('img');
                 img.src = foto;
@@ -401,17 +402,15 @@
             const nombre = localStorage.getItem('nombre_actual') || '';
             const apellido = localStorage.getItem('apellido_actual') || '';
             const foto = localStorage.getItem('foto_actual') || ''; 
-            // Solo muestra el avatar si el usuario NO es un invitado
             if (localStorage.getItem('correo_actual') !== 'invitado@temp.com') {
                 renderAvatar('user-avatar-container', nombre, apellido, foto, window.innerWidth < 600 ? 36 : 44, showPerfilModal);
             } else {
                 const container = document.getElementById('user-avatar-container');
-                if (container) container.innerHTML = ''; // Ocultar avatar para invitados
+                if (container) container.innerHTML = '';
             }
         }
 
         function showPerfilModal() {
-            // No mostrar el modal de perfil si el usuario es invitado
             if (localStorage.getItem('correo_actual') === 'invitado@temp.com') {
                 return;
             }
@@ -437,23 +436,24 @@
             msg.classList.add('show');
             setTimeout(() => {
                 msg.classList.remove('show');
-            }, 2500); // Duración de la animación + un pequeño retraso
+            }, 2500);
         }
 
         // *** FUNCIONES QUE INTERACTÚAN CON EL BACKEND ***
 
-        // URL base de tu backend en Render
         const API_BASE_URL = 'https://proyectoexpokinal.onrender.com';
 
         async function cargarUsuariosDesdeBackend() {
             const tbody = document.querySelector('#usuarios-table tbody');
-            if (!tbody) return; // Asegurarse de que el tbody existe
+            if (!tbody) return;
 
-            tbody.innerHTML = '<tr><td colspan="4">Cargando usuarios...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5">Cargando usuarios...</td></tr>'; // Actualizado a 5 columnas
             try {
                 const token = localStorage.getItem('token');
-                if (!token) {
-                    tbody.innerHTML = '<tr><td colspan="4">No autenticado para ver usuarios.</td></tr>';
+                const userRole = localStorage.getItem('rol_actual'); // Obtener el rol del usuario
+                
+                if (!token || userRole !== 'admin') { // Solo cargar si hay token y el rol es 'admin'
+                    tbody.innerHTML = '<tr><td colspan="5">Acceso denegado. No tienes permisos de administrador.</td></tr>';
                     return;
                 }
 
@@ -464,7 +464,7 @@
                 });
                 if (!response.ok) {
                     if (response.status === 403) {
-                        tbody.innerHTML = '<tr><td colspan="4">Acceso denegado. No tienes permisos de administrador.</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="5">Acceso denegado. No tienes permisos de administrador.</td></tr>';
                         return;
                     }
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -473,87 +473,87 @@
                 tbody.innerHTML = ''; 
 
                 if (usuarios.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4">No hay usuarios registrados.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5">No hay usuarios registrados.</td></tr>';
                 } else {
                     usuarios.forEach(usuario => {
                         const tr = document.createElement('tr');
                         tr.innerHTML = `<td>${usuario.id}</td>
                                         <td>${usuario.correo}</td>
                                         <td>${usuario.nombre || 'N/A'}</td>
-                                        <td>${usuario.apellido || 'N/A'}</td>`;
+                                        <td>${usuario.apellido || 'N/A'}</td>
+                                        <td>${usuario.rol || 'N/A'}</td>`; // Mostrar el rol
                         tbody.appendChild(tr);
                     });
                 }
             } catch (error) {
                 console.error('Error al cargar usuarios desde el backend:', error);
-                tbody.innerHTML = '<tr><td colspan="4">Error al cargar usuarios. Intenta de nuevo más tarde.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5">Error al cargar usuarios. Intenta de nuevo más tarde.</td></tr>';
             }
         }
 
-        async function mostrarUsuariosSiAdmin() {
-            const emailActual = localStorage.getItem('correo_actual');
-            const usuariosSection = document.getElementById('usuarios-section');
-            if (!usuariosSection) return; // Asegurarse de que la sección existe
-
-            // Solo si el usuario es el admin real (no el invitado)
-            if (emailActual === 'admin@admin.com') { 
-                usuariosSection.style.display = '';
-                await cargarUsuariosDesdeBackend(); 
-            } else {
-                usuariosSection.style.display = 'none';
-            }
-        }
-
-        // --- Función para actualizar la interfaz de usuario ---
+        // Función principal para actualizar la interfaz de usuario
         function updateUI() {
             const accesoSection = document.getElementById('acceso-section');
             const mainSection = document.getElementById('main-section');
             const sidebarSection = document.getElementById('sidebar-section');
             const userAvatarContainer = document.getElementById('user-avatar-container');
             const usuariosSection = document.getElementById('usuarios-section');
+            const adminDashboardLink = document.getElementById('admin-dashboard-link');
 
             // Asegurarse de que todos los elementos existen antes de manipularlos
-            if (!accesoSection || !mainSection || !sidebarSection || !userAvatarContainer || !usuariosSection) {
+            if (!accesoSection || !mainSection || !sidebarSection || !userAvatarContainer || !usuariosSection || !adminDashboardLink) {
                 console.error("Algunos elementos UI no se encontraron. La interfaz no se actualizará completamente.");
                 return;
             }
 
-            if (localStorage.getItem('logueado') === 'si') {
+            const isUserLoggedIn = localStorage.getItem('logueado') === 'si';
+            const currentUserEmail = localStorage.getItem('correo_actual');
+            const currentUserRole = localStorage.getItem('rol_actual'); // Obtener el rol del localStorage
+
+            if (isUserLoggedIn) {
                 accesoSection.style.display = 'none';
-                mainSection.style.display = ''; // O 'block' o 'flex' según tu CSS
                 sidebarSection.style.display = '';
-                showUserAvatar(); // Muestra el avatar si no es invitado
-                mostrarUsuariosSiAdmin(); // Muestra la tabla de usuarios si es admin
+                showUserAvatar(); 
+
+                // Mostrar la sección de inicio por defecto
+                mainSection.style.display = '';
+                usuariosSection.style.display = 'none'; // Ocultar la tabla de usuarios por defecto
+
+                // Mostrar el enlace de administración si es admin
+                if (currentUserEmail === 'admin@admin.com' && currentUserRole === 'admin') {
+                    adminDashboardLink.style.display = '';
+                    // Al hacer clic en "Administración", mostrar la tabla de usuarios
+                    adminDashboardLink.onclick = async function(e) {
+                        e.preventDefault(); // Prevenir navegación por URL
+                        mainSection.style.display = 'none'; // Ocultar sección de bienvenida
+                        usuariosSection.style.display = ''; // Mostrar sección de usuarios
+                        await cargarUsuariosDesdeBackend(); // Cargar los datos
+                        toggleMenu(); // Cerrar el menú lateral
+                    };
+                } else {
+                    adminDashboardLink.style.display = 'none';
+                }
+
             } else {
-                accesoSection.style.display = ''; // O 'block' o 'flex'
+                accesoSection.style.display = '';
                 mainSection.style.display = 'none';
                 sidebarSection.style.display = 'none';
-                userAvatarContainer.innerHTML = ''; // Limpiar avatar al desloguear
-                usuariosSection.style.display = 'none'; // Ocultar tabla de usuarios
-                closePerfilModal(); // Asegurarse de que el modal de perfil esté cerrado
+                userAvatarContainer.innerHTML = '';
+                usuariosSection.style.display = 'none';
+                adminDashboardLink.style.display = 'none'; // Ocultar para no logueados
+                closePerfilModal();
             }
         }
 
 
         // --- Función para cerrar sesión ---
         function logout() {
-            // Limpiar todas las claves de localStorage relacionadas con la sesión
-            localStorage.removeItem('logueado');
-            localStorage.removeItem('correo_actual');
-            localStorage.removeItem('nombre_actual');
-            localStorage.removeItem('apellido_actual');
-            localStorage.removeItem('foto_actual');
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-
-            // Ocultar el menú lateral si está abierto
+            localStorage.clear(); // Limpia TODO el localStorage relacionado con la sesión
+            
             const menu = document.getElementById('menu-list');
             if (menu) menu.classList.remove('show'); 
 
-            // Actualizar la interfaz de usuario para mostrar la sección de acceso
             updateUI(); 
-
-            // Cerrar el modal de perfil si está abierto
             closePerfilModal(); 
         }
 
@@ -563,7 +563,7 @@
             const loginError = document.getElementById('login-error');
             const registerError = document.getElementById('register-error');
             const registerSuccess = document.getElementById('register-success');
-            const perfilFotoInput = document.getElementById('perfil-foto-input'); // Se mantiene para la edición de perfil
+            const perfilFotoInput = document.getElementById('perfil-foto-input');
             const guestLoginBtn = document.getElementById('guest-login-btn');
             const guestLoginBtnRegister = document.getElementById('guest-login-btn-register');
 
@@ -583,12 +583,11 @@
                 loginError.textContent = '';
             };
 
-            // Ejecuta updateUI al cargar la página para establecer el estado inicial
-            updateUI();
+            updateUI(); // Ejecuta updateUI al cargar la página para establecer el estado inicial
 
 
             // *** LOGICA DE LOGIN CON BACKEND ***
-            if (loginForm) { // Asegurarse de que el formulario exista
+            if (loginForm) { 
                 loginForm.addEventListener('submit', async function(e) {
                     e.preventDefault();
                     const correo = loginForm.email.value.trim();
@@ -615,6 +614,7 @@
                             localStorage.setItem('foto_actual', data.user.foto || '');
                             localStorage.setItem('token', data.token);
                             localStorage.setItem('user', JSON.stringify(data.user));
+                            localStorage.setItem('rol_actual', data.user.rol); // Guardar el rol
 
                             loginForm.reset();
                             mostrarBienvenida(data.user.nombre || data.user.correo.split('@')[0]); 
@@ -633,7 +633,7 @@
             }
 
             // *** LOGICA DE REGISTRO CON BACKEND ***
-            if (registerForm) { // Asegurarse de que el formulario exista
+            if (registerForm) { 
                 registerForm.addEventListener('submit', async function(e) {
                     e.preventDefault();
                     const nombre = registerForm.nombre.value.trim();
@@ -670,7 +670,8 @@
                             apellido: apellido,
                             correo: correo,
                             password: password,
-                            foto: fotoBase64 
+                            foto: fotoBase64,
+                            rol: 'estudiante' // Por defecto, los usuarios registrados son 'estudiante'
                         };
 
                         try {
@@ -692,6 +693,7 @@
                                 localStorage.setItem('foto_actual', data.user.foto || '');
                                 localStorage.setItem('token', data.token);
                                 localStorage.setItem('user', JSON.stringify(data.user));
+                                localStorage.setItem('rol_actual', data.user.rol); // Guardar el rol
 
                                 registerForm.reset();
                                 mostrarBienvenida(data.user.nombre || data.user.correo.split('@')[0]);
@@ -712,7 +714,7 @@
             }
 
             // Lógica para actualizar foto de perfil
-            if (perfilFotoInput) { // Asegurarse de que el input exista
+            if (perfilFotoInput) { 
                 perfilFotoInput.addEventListener('change', function() {
                     const file = this.files[0];
                     if (file) {
@@ -743,8 +745,10 @@
                                 if (response.ok) {
                                     const data = await response.json();
                                     localStorage.setItem('foto_actual', data.user.foto);
-                                    showUserAvatar(); // Actualizar el avatar en el header
-                                    showPerfilModal(); // Actualizar el avatar y datos en el modal
+                                    // Actualizar el objeto 'user' completo en localStorage también
+                                    localStorage.setItem('user', JSON.stringify(data.user));
+                                    showUserAvatar(); 
+                                    showPerfilModal(); 
                                     alert('Foto de perfil actualizada con éxito.');
                                 } else {
                                     const errorData = await response.json();
@@ -763,12 +767,13 @@
             // *** LOGICA DE "SEGUIR SIN CUENTA" ***
             function handleGuestLogin() {
                 localStorage.setItem('logueado', 'si');
-                localStorage.setItem('correo_actual', 'invitado@temp.com'); // Un correo ficticio para identificar al invitado
+                localStorage.setItem('correo_actual', 'invitado@temp.com'); 
                 localStorage.setItem('nombre_actual', 'Invitado');
                 localStorage.setItem('apellido_actual', '');
-                localStorage.removeItem('foto_actual'); // El invitado no tiene foto
-                localStorage.removeItem('token'); // El invitado no tiene token
-                localStorage.removeItem('user'); // El invitado no tiene objeto de usuario completo
+                localStorage.removeItem('foto_actual'); 
+                localStorage.removeItem('token'); 
+                localStorage.removeItem('user'); 
+                localStorage.setItem('rol_actual', 'invitado'); // Rol para el invitado
 
                 mostrarBienvenida('Invitado'); 
                 setTimeout(() => {
