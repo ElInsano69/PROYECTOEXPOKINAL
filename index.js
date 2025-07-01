@@ -1,10 +1,9 @@
-// backend/index.js (Este es tu archivo del backend)
-
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const path = require('path'); // Necesario para servir archivos estáticos
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -18,15 +17,23 @@ const pool = new Pool({
 });
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.use(cors()); // Permite peticiones desde tu frontend
+app.use(express.json()); // Habilita el parseo de JSON en las peticiones
 
-// *******************************************************************
-// *** AQUÍ DEBES AGREGAR TODAS TUS RUTAS Y LÓGICA DE BACKEND ***
-// (Las mismas rutas de login, registro, usuarios, etc. que te di antes para server.js)
-// *******************************************************************
+// **********************************************************************************
+// *** NUEVO: SERVIR ARCHIVOS ESTÁTICOS (TU HTML, CSS, JS DE FRONTEND)             ***
+// *** Asegúrate de que tu index.html y otros archivos de frontend estén en la raíz ***
+// **********************************************************************************
+app.use(express.static(__dirname)); // Sirve archivos estáticos desde el directorio actual (la raíz del proyecto)
 
-// Ruta de ejemplo (mantén tus rutas de login, registro, etc. aquí)
+// Ruta para la raíz, sirve el index.html
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+
+// Rutas de tu API (Login, Registro, Usuarios, etc.) - Estas NO USAN 'document'
+// Ruta de ejemplo para verificar que el backend funciona
 app.get('/api/saludo-backend', (req, res) => {
   res.json({ message: '¡Hola desde tu API de Backend!' });
 });
@@ -35,7 +42,7 @@ app.get('/api/saludo-backend', (req, res) => {
 app.post('/api/login', async (req, res) => {
     const { email, clave } = req.body;
     try {
-        const userResult = await pool.query('SELECT id, correo, clave, nombre, apellido, rol, foto FROM usuarios WHERE correo = $1', [email]);
+        const userResult = await pool.query('SELECT id, correo, clave, clave, nombre, apellido, rol, foto FROM usuarios WHERE correo = $1', [email]);
         const user = userResult.rows[0];
 
         if (!user) {
@@ -47,12 +54,14 @@ app.post('/api/login', async (req, res) => {
             return res.status(400).json({ message: 'Credenciales inválidas' });
         }
 
+        // Generar token JWT con la información del usuario
         const token = jwt.sign(
             { id: user.id, correo: user.correo, rol: user.rol, nombre: user.nombre, apellido: user.apellido, foto: user.foto },
-            process.env.JWT_SECRET || 'tu_secreto_jwt',
-            { expiresIn: '1h' }
+            process.env.JWT_SECRET || 'tu_secreto_jwt', // Usa una variable de entorno para el secreto
+            { expiresIn: '1h' } // Token expira en 1 hora
         );
 
+        // Envía los datos del usuario (sin la clave hasheada) y el token
         res.json({ token, user: { id: user.id, correo: user.correo, nombre: user.nombre, apellido: user.apellido, rol: user.rol, foto: user.foto } });
     } catch (error) {
         console.error('Error en el login:', error);
@@ -64,24 +73,25 @@ app.post('/api/login', async (req, res) => {
 app.post('/api/register', async (req, res) => {
     const { nombre, apellido, email, clave } = req.body;
     try {
-        const hashedPassword = await bcrypt.hash(clave, 10);
+        const hashedPassword = await bcrypt.hash(clave, 10); // Hashear la contraseña
         const newUser = await pool.query(
             'INSERT INTO usuarios (nombre, apellido, correo, clave, rol) VALUES ($1, $2, $3, $4, $5) RETURNING id, correo, nombre, apellido, rol, foto',
-            [nombre, apellido, email, hashedPassword, 'estudiante']
+            [nombre, apellido, email, hashedPassword, 'estudiante'] // Rol por defecto 'estudiante'
         );
         res.status(201).json({ message: 'Usuario registrado con éxito', user: newUser.rows[0] });
     } catch (error) {
         console.error('Error en el registro:', error);
-        if (error.code === '23505') {
+        if (error.code === '23505') { // Código de error para clave duplicada (ej. correo ya registrado)
             return res.status(400).json({ message: 'El correo electrónico ya está registrado.' });
         }
         res.status(500).json({ message: 'Error interno del servidor al registrar usuario' });
     }
 });
 
-// Ruta para obtener usuarios (solo para admin)
+// Ruta para obtener usuarios (protegida, solo para admin)
 app.get('/api/users', async (req, res) => {
     try {
+        // Verificar token y rol de administrador
         const token = req.headers.authorization?.split(' ')[1];
         if (!token) {
             return res.status(401).json({ message: 'No autorizado: Token no proporcionado' });
@@ -96,15 +106,15 @@ app.get('/api/users', async (req, res) => {
         res.json(result.rows);
     } catch (error) {
         console.error('Error al obtener usuarios:', error);
-        if (error instanceof jwt.JsonWebTokenError) {
+        if (error instanceof jwt.JsonWebTokenError) { // Token inválido o expirado
             return res.status(401).json({ message: 'Token inválido o expirado' });
         }
         res.status(500).json({ message: 'Error interno del servidor al obtener usuarios' });
     }
 });
 
-// Ruta para eliminar un usuario
-app.delete('/users/:id', async (req, res) => {
+// Ruta para eliminar un usuario (protegida, solo para admin)
+app.delete('/api/users/:id', async (req, res) => {
     try {
         const userIdToDelete = req.params.id;
         const token = req.headers.authorization?.split(' ')[1];
@@ -118,6 +128,7 @@ app.delete('/users/:id', async (req, res) => {
             return res.status(403).json({ message: 'Acceso denegado: Se requiere rol de administrador para eliminar' });
         }
 
+        // Evitar que un admin se elimine a sí mismo
         if (decoded.id == userIdToDelete) {
             return res.status(403).json({ message: 'No puedes eliminar tu propia cuenta de administrador.' });
         }
@@ -136,7 +147,7 @@ app.delete('/users/:id', async (req, res) => {
     }
 });
 
-// Ruta para actualizar foto de perfil (solo esqueleto)
+// Ruta para actualizar foto de perfil (esqueleto, aún necesita lógica de subida real)
 app.post('/api/profile/photo', async (req, res) => {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) return res.status(401).json({ message: 'No autorizado' });
@@ -144,7 +155,7 @@ app.post('/api/profile/photo', async (req, res) => {
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu_secreto_jwt');
         const userId = decoded.id;
-        const { fotoUrl } = req.body;
+        const { fotoUrl } = req.body; // Se espera que fotoUrl ya sea una URL accesible públicamente
 
         if (!fotoUrl) {
             return res.status(400).json({ message: 'URL de la foto no proporcionada' });
@@ -172,5 +183,5 @@ app.post('/api/profile/photo', async (req, res) => {
 
 // Iniciar el servidor
 app.listen(PORT, () => {
-  console.log(`Servidor de backend escuchando en el puerto ${PORT}`);
+  console.log(`Servidor escuchando en el puerto ${PORT}`);
 });
