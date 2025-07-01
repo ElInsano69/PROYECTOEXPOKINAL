@@ -1,22 +1,21 @@
-    {
-      "name": "mi-app-kinal",
-      "version": "1.0.0",
-      "description": "",
-      "main": "index.js", // CAMBIADO: Ahora apunta directamente a index.js en la raíz
-      "scripts": {
-        "start": "node index.js", // CAMBIADO: Ahora apunta directamente a index.js en la raíz
-        "test": "echo \"Error: no test specified\" && exit 1"
-      },
-      "keywords": [],
-      "author": "",
-      "license": "ISC",
-      "dependencies": {
-        "bcrypt": "^5.1.1",
-        "bcryptjs": "^3.0.2",
-        "cors": "^2.8.5",
-        "express": "^4.18.2",
-        "jsonwebtoken": "^9.0.2",
-        "pg": "^8.11.3"
-      }
-    }
-    
+{
+  "name": "mi-app-kinal",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.11.3"
+  }
+}
