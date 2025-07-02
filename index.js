@@ -1,399 +1,170 @@
-// --- Menú lateral ---
-function toggleMenu() {
-    const menu = document.getElementById('menu-list');
-    menu.classList.toggle('show');
-}
-document.addEventListener('click', function(e) {
-    const menu = document.getElementById('menu-list');
-    const icon = document.querySelector('.menu-icon');
-    if (e.target.closest('.menu-list a')) return;
-    if (!menu.contains(e.target) && !icon.contains(e.target)) {
-        menu.classList.remove('show');
-    }
+const express = require('express');
+const path = require('path'); // Para manejar rutas de archivos
+const app = express();
+const port = process.env.PORT || 10000; // Render usará process.env.PORT, localmente 10000
+
+// --- MIDDLEWARE GENERAL DE EXPRESS ---
+// Middleware para procesar solicitudes con cuerpo JSON
+app.use(express.json());
+// Middleware para procesar solicitudes con cuerpo URL-encoded (para formularios HTML simples)
+app.use(express.urlencoded({ extended: true }));
+
+// --- CONFIGURACIÓN DE TU BACKEND Y CONEXIÓN A LA BASE DE DATOS (PostgreSQL) ---
+const { Pool } = require('pg');
+
+// Crea un pool de conexiones a la base de datos
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL, // Render proporciona esta URL
+  ssl: {
+    rejectUnauthorized: false // Necesario para Render si no tienes un certificado SSL válido instalado
+  }
 });
-document.addEventListener('DOMContentLoaded', function() {
-    const menu = document.getElementById('menu-list');
-    const links = menu.querySelectorAll('a');
-    function updateLinks() {
-        if (menu.classList.contains('show')) {
-            links.forEach(a => a.tabIndex = 0);
+
+// Prueba la conexión a la base de datos al iniciar el servidor
+pool.query('SELECT NOW()', (err, res) => {
+  if (err) {
+    console.error('Error al conectar a la base de datos:', err.stack);
+  } else {
+    console.log('Conexión a la base de datos PostgreSQL exitosa:', res.rows[0].now);
+  }
+});
+
+// *** TUS RUTAS DE API Y LÓGICA DE BACKEND AQUÍ ***
+// Aquí van tus funciones para manejar el login, registro, gestión de usuarios, etc.
+// ESTOS SON EJEMPLOS. AJÚSTALOS A LA ESTRUCTURA EXACTA DE TU BASE DE DATOS Y LÓGICA.
+
+// Ruta de Registro de Usuario
+app.post('/api/register', async (req, res) => {
+    const { nombre, apellido, email, clave } = req.body;
+    try {
+        // !!! MUY IMPORTANTE: En una aplicación real, HASHEA la contraseña antes de guardarla.
+        // Por ejemplo, usando bcrypt: const hashedPassword = await bcrypt.hash(clave, 10);
+        const result = await pool.query(
+            'INSERT INTO users (nombre, apellido, correo, clave, rol) VALUES ($1, $2, $3, $4, $5) RETURNING id, correo, nombre, apellido, rol',
+            [nombre, apellido, email, clave, 'user'] // 'user' es el rol por defecto
+        );
+        res.status(201).json({ message: 'Usuario registrado con éxito', user: result.rows[0] });
+    } catch (error) {
+        console.error('Error al registrar usuario:', error);
+        if (error.code === '23505') { // Código de error de PostgreSQL para violación de unicidad (ej. correo duplicado)
+            res.status(400).json({ message: 'El correo electrónico ya está registrado.' });
         } else {
-            links.forEach(a => a.tabIndex = -1);
+            res.status(500).json({ message: 'Error interno del servidor al registrar.' });
         }
     }
-    updateLinks();
-    const observer = new MutationObserver(updateLinks);
-    observer.observe(menu, { attributes: true, attributeFilter: ['class'] });
 });
 
-// Utilidades
-function getInitials(nombre, apellido) {
-    if (!nombre && !apellido) return "?";
-    let initials = "";
-    if (nombre) initials += nombre[0];
-    if (apellido) initials += apellido[0];
-    return initials.toUpperCase();
-}
+// Ruta de Login de Usuario
+app.post('/api/login', async (req, res) => {
+    const { email, clave } = req.body;
+    try {
+        const result = await pool.query('SELECT id, nombre, apellido, correo, clave, rol FROM users WHERE correo = $1', [email]);
+        const user = result.rows[0];
 
-// Función renderAvatar mejorada para reutilización (simplificada sin 'foto')
-function renderAvatar(containerElement, nombre, apellido, size, className, clickHandler = null) {
-    if (!containerElement) {
-        console.warn(`Contenedor '${containerElement}' no encontrado.`);
-        return;
+        if (!user) {
+            return res.status(400).json({ message: 'Credenciales inválidas.' });
+        }
+
+        // !!! MUY IMPORTANTE: En una aplicación real, compara la contraseña hasheada.
+        // Por ejemplo, usando bcrypt: const isMatch = await bcrypt.compare(clave, user.clave);
+        // if (!isMatch) { return res.status(400).json({ message: 'Credenciales inválidas.' }); }
+
+        // Si NO usas bcrypt (solo para pruebas locales con contraseñas en texto plano):
+        if (clave !== user.clave) { 
+            return res.status(400).json({ message: 'Credenciales inválidas.' });
+        }
+
+        // !!! MUY IMPORTANTE: Genera un JSON Web Token (JWT) aquí para autenticación real.
+        const token = 'fake-jwt-token-for-testing'; // Reemplázalo con un JWT real
+
+        // Elimina la contraseña del objeto de usuario antes de enviarlo al frontend por seguridad
+        delete user.clave; 
+        res.json({ message: 'Login exitoso', token, user });
+
+    } catch (error) {
+        console.error('Error durante el login:', error);
+        res.status(500).json({ message: 'Error interno del servidor durante el login.' });
     }
-    containerElement.innerHTML = '';
-    
-    let element = document.createElement('div');
-    element.className = className + ' user-circle'; // Siempre user-circle
-    element.textContent = getInitials(nombre, apellido);
-    
-    element.style.width = element.style.height = size + 'px';
-    if (clickHandler) element.onclick = clickHandler;
-    
-    containerElement.appendChild(element);
-}
+});
 
-// Modificación de showUserAvatar para usar la nueva renderAvatar (sin 'foto')
-function showUserAvatar() {
-    const nombre = localStorage.getItem('nombre_actual') || '';
-    const apellido = localStorage.getItem('apellido_actual') || '';
-    const userAvatarContainer = document.getElementById('user-avatar-container');
+// Middleware de autenticación (ejemplo simple, si usarías tokens)
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Espera "Bearer TU_TOKEN"
 
-    if (localStorage.getItem('correo_actual') !== 'invitado@temp.com') {
-        renderAvatar(userAvatarContainer, nombre, apellido, window.innerWidth < 600 ? 36 : 44, 'user-circle-header', showPerfilModal);
+    if (token == null) return res.sendStatus(401); // No autorizado si no hay token
+
+    // !!! MUY IMPORTANTE: Aquí verificarías el token JWT con una librería como 'jsonwebtoken'.
+    // jwt.verify(token, process.env.JWT_SECRET, (err, user) => { ... });
+    
+    // Para el ejemplo, simulamos un token válido:
+    if (token === 'fake-jwt-token-for-testing') { 
+        req.user = { id: 1, correo: 'admin@admin.com', rol: 'admin' }; // Simula un usuario administrador
+        next(); // Continúa con la siguiente función de middleware/ruta
     } else {
-        if (userAvatarContainer) userAvatarContainer.innerHTML = '';
+        return res.sendStatus(403); // Prohibido si el token no es válido
     }
 }
 
-function showPerfilModal() {
-    if (localStorage.getItem('correo_actual') === 'invitado@temp.com') {
-        return;
+// Ruta para obtener todos los usuarios (requiere autenticación y rol de 'admin')
+app.get('/api/users', authenticateToken, async (req, res) => {
+    // Verifica si el usuario autenticado tiene rol de administrador
+    if (req.user.rol !== 'admin') {
+        return res.status(403).json({ message: 'Acceso denegado. No tienes permisos de administrador.' });
     }
-    const correo = localStorage.getItem('correo_actual') || '';
-    const nombre = localStorage.getItem('nombre_actual') || '';
-    const apellido = localStorage.getItem('apellido_actual') || '';
-    const perfilAvatarContainer = document.getElementById('perfil-avatar-container');
-
-    renderAvatar(perfilAvatarContainer, nombre, apellido, window.innerWidth < 600 ? 44 : 60, 'user-circle-modal');
-    
-    document.getElementById('perfil-nombre').textContent = "Nombre: " + (nombre || 'N/A');
-    document.getElementById('perfil-apellido').textContent = "Apellido: " + (apellido || 'N/A');
-    document.getElementById('perfil-usuario').textContent = "Correo: " + correo;
-    document.getElementById('perfil-modal-bg').classList.add('show');
-}
-function closePerfilModal() {
-    const modal = document.getElementById('perfil-modal-bg');
-    if (modal) modal.classList.remove('show');
-}
-
-function mostrarBienvenida(nombre) {
-    const msg = document.getElementById('bienvenido-full');
-    if (!msg) return;
-    msg.innerHTML = `<span class="bienvenido-text">BIENVENIDO ${nombre}</span>`;
-    msg.classList.add('show');
-    setTimeout(() => {
-        msg.classList.remove('show');
-    }, 2500);
-}
-
-// *** FUNCIONES QUE INTERACTÚAN CON EL BACKEND ***
-
-const API_BASE_URL = 'https://proyectoexpokinal.onrender.com';
-
-// Nueva función para eliminar usuario
-async function deleteUser(userId) {
-    if (!confirm('¿Estás seguro de que quieres eliminar este usuario?')) {
-        return;
+    try {
+        // Selecciona todos los usuarios, excluyendo la clave
+        const result = await pool.query('SELECT id, nombre, apellido, correo, rol FROM users ORDER BY id ASC');
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error al obtener usuarios:', error);
+        res.status(500).json({ message: 'Error interno del servidor al obtener usuarios.' });
     }
+});
 
-    const token = localStorage.getItem('token');
-    const currentUserEmail = localStorage.getItem('correo_actual');
-    const currentUserRole = localStorage.getItem('rol_actual');
-
-    if (!token || currentUserEmail !== 'admin@admin.com' || currentUserRole !== 'admin') {
-        alert('No tienes permisos para eliminar usuarios.');
-        return;
+// Ruta para eliminar un usuario por ID (requiere autenticación y rol de 'admin')
+app.delete('/api/users/:id', authenticateToken, async (req, res) => {
+    if (req.user.rol !== 'admin') {
+        return res.status(403).json({ message: 'Acceso denegado. No tienes permisos de administrador.' });
     }
+    const userId = parseInt(req.params.id); // Obtiene el ID del usuario de la URL
 
     // Evitar que el administrador se elimine a sí mismo
-    const currentUserObj = JSON.parse(localStorage.getItem('user'));
-    if (currentUserObj && currentUserObj.id === userId) {
-        alert('No puedes eliminar tu propia cuenta de administrador.');
-        return;
+    if (req.user.id === userId && req.user.rol === 'admin') {
+        return res.status(403).json({ message: 'No puedes eliminar tu propia cuenta de administrador.' });
     }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        if (response.ok) {
-            alert('Usuario eliminado con éxito.');
-            cargarUsuariosDesdeBackend(); // Recargar la tabla después de eliminar
+        const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [userId]);
+        if (result.rowCount > 0) {
+            res.json({ message: 'Usuario eliminado con éxito.', id: userId });
         } else {
-            const errorData = await response.json();
-            alert('Error al eliminar usuario: ' + (errorData.message || 'Desconocido'));
+            res.status(404).json({ message: 'Usuario no encontrado.' });
         }
     } catch (error) {
-        console.error('Error al conectar con el servidor para eliminar usuario:', error);
-        alert('Error de conexión al intentar eliminar usuario.');
-    }
-}
-
-
-async function cargarUsuariosDesdeBackend() {
-    const tbody = document.querySelector('#usuarios-table tbody');
-    if (!tbody) return;
-
-    tbody.innerHTML = '<tr><td colspan="6">Cargando usuarios...</td></tr>'; // Actualizado a 6 columnas
-    try {
-        const token = localStorage.getItem('token');
-        const userRole = localStorage.getItem('rol_actual');
-        
-        if (!token || userRole !== 'admin') {
-            tbody.innerHTML = '<tr><td colspan="6">Acceso denegado. No tienes permisos de administrador.</td></tr>';
-            return;
-        }
-
-        const response = await fetch(`${API_BASE_URL}/users`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        if (!response.ok) {
-            if (response.status === 403) {
-                tbody.innerHTML = '<tr><td colspan="6">Acceso denegado. No tienes permisos de administrador.</td></tr>';
-                return;
-            }
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const usuarios = await response.json();
-        tbody.innerHTML = '';
-
-        if (usuarios.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6">No hay usuarios registrados.</td></tr>';
-        } else {
-            usuarios.forEach(usuario => {
-                const tr = document.createElement('tr');
-                const currentUserObj = JSON.parse(localStorage.getItem('user'));
-                const isCurrentUserAdmin = (currentUserObj && currentUserObj.id === usuario.id && usuario.rol === 'admin');
-
-                tr.innerHTML = `<td>${usuario.id}</td>
-                                <td>${usuario.correo}</td>
-                                <td>${usuario.nombre || 'N/A'}</td>
-                                <td>${usuario.apellido || 'N/A'}</td>
-                                <td>${usuario.rol || 'N/A'}</td>
-                                <td>
-                                    ${!isCurrentUserAdmin ? `<button class="delete-user-btn" onclick="deleteUser(${usuario.id})">Eliminar</button>` : ''}
-                                </td>`;
-                
-                tbody.appendChild(tr);
-            });
-        }
-    } catch (error) {
-        console.error('Error al cargar usuarios desde el backend:', error);
-        tbody.innerHTML = '<tr><td colspan="6">Error al cargar usuarios. Intenta de nuevo más tarde.</td></tr>';
-    }
-}
-
-function updateUI() {
-    const accesoSection = document.getElementById('acceso-section');
-    const mainSection = document.getElementById('main-section');
-    const sidebarSection = document.getElementById('sidebar-section');
-    const userAvatarContainer = document.getElementById('user-avatar-container');
-    const usuariosSection = document.getElementById('usuarios-section');
-    const adminDashboardLink = document.getElementById('admin-dashboard-link');
-
-    if (!accesoSection || !mainSection || !sidebarSection || !userAvatarContainer || !usuariosSection || !adminDashboardLink) {
-        console.error("Algunos elementos UI no se encontraron. La interfaz no se actualizará completamente.");
-        return;
-    }
-
-    const isUserLoggedIn = localStorage.getItem('logueado') === 'si';
-    const currentUserEmail = localStorage.getItem('correo_actual');
-    const currentUserRole = localStorage.getItem('rol_actual');
-
-    if (isUserLoggedIn) {
-        accesoSection.style.display = 'none';
-        sidebarSection.style.display = '';
-        showUserAvatar();
-
-        mainSection.style.display = '';
-        usuariosSection.style.display = 'none';
-
-        if (currentUserEmail === 'admin@admin.com' && currentUserRole === 'admin') {
-            adminDashboardLink.style.display = '';
-            adminDashboardLink.onclick = async function(e) {
-                e.preventDefault();
-                mainSection.style.display = 'none';
-                usuariosSection.style.display = '';
-                await cargarUsuariosDesdeBackend();
-                toggleMenu();
-            };
-        } else {
-            adminDashboardLink.style.display = 'none';
-        }
-
-    } else {
-        accesoSection.style.display = '';
-        mainSection.style.display = 'none';
-        sidebarSection.style.display = 'none';
-        userAvatarContainer.innerHTML = '';
-        usuariosSection.style.display = 'none';
-        adminDashboardLink.style.display = 'none';
-        closePerfilModal();
-    }
-}
-
-
-// --- Función para cerrar sesión ---
-function logout() {
-    localStorage.clear();
-    
-    const menu = document.getElementById('menu-list');
-    if (menu) menu.classList.remove('show');
-    
-    updateUI();
-}
-
-// --- Manejo de Login/Registro ---
-document.getElementById('show-register').addEventListener('click', function() {
-    document.getElementById('login-form').style.display = 'none';
-    document.getElementById('register-form').style.display = 'block';
-    document.getElementById('login-error').textContent = '';
-});
-
-document.getElementById('show-login').addEventListener('click', function() {
-    document.getElementById('login-form').style.display = 'block';
-    document.getElementById('register-form').style.display = 'none';
-    document.getElementById('register-error').textContent = '';
-    document.getElementById('register-success').textContent = '';
-});
-
-document.getElementById('login-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const email = this.elements.email.value;
-    const clave = this.elements.clave.value;
-    const errorDiv = document.getElementById('login-error');
-    errorDiv.textContent = '';
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/login`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ email, clave })
-        });
-
-        const data = await response.json();
-        if (response.ok) {
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('logueado', 'si');
-            localStorage.setItem('correo_actual', data.user.correo);
-            localStorage.setItem('nombre_actual', data.user.nombre);
-            localStorage.setItem('apellido_actual', data.user.apellido);
-            localStorage.setItem('rol_actual', data.user.rol);
-            localStorage.setItem('user', JSON.stringify(data.user)); // Guarda todo el objeto user
-
-            mostrarBienvenida(data.user.nombre);
-            setTimeout(() => {
-                updateUI();
-            }, 2500); // Espera a que termine la animación
-        } else {
-            errorDiv.textContent = data.message || 'Error en el login';
-        }
-    } catch (error) {
-        console.error('Error de conexión:', error);
-        errorDiv.textContent = 'Error de conexión con el servidor.';
+        console.error('Error al eliminar usuario:', error);
+        res.status(500).json({ message: 'Error interno del servidor al eliminar usuario.' });
     }
 });
 
-document.getElementById('register-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const nombre = this.elements.nombre.value;
-    const apellido = this.elements.apellido.value;
-    const email = this.elements.email.value;
-    const clave = this.elements.clave.value;
-    const clave2 = this.elements.clave2.value;
-    const errorDiv = document.getElementById('register-error');
-    const successDiv = document.getElementById('register-success');
-    errorDiv.textContent = '';
-    successDiv.textContent = '';
+// --- SERVIR ARCHIVOS ESTÁTICOS DEL FRONTEND DESDE LA CARPETA 'public/' ---
+// Esta línea es crucial. Le dice a Express que sirva todos los archivos
+// dentro de la carpeta 'public' (tu HTML, CSS, imágenes, y el script.js del frontend).
+// Cuando alguien acceda a la raíz de tu servidor (ej. http://localhost:10000/),
+// Express buscará 'index.html' dentro de 'public' y lo enviará.
+app.use(express.static(path.join(__dirname, 'public')));
 
-    if (clave !== clave2) {
-        errorDiv.textContent = 'Las contraseñas no coinciden.';
-        return;
-    }
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/register`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ nombre, apellido, email, clave })
-        });
-
-        const data = await response.json();
-        if (response.ok) {
-            successDiv.textContent = '¡Registro exitoso! Ahora puedes iniciar sesión.';
-            this.reset();
-            setTimeout(() => {
-                document.getElementById('show-login').click();
-            }, 2000);
-        } else {
-            errorDiv.textContent = data.message || 'Error en el registro';
-        }
-    } catch (error) {
-        console.error('Error de conexión:', error);
-        errorDiv.textContent = 'Error de conexión con el servidor.';
-    }
+// --- RUTA CATCH-ALL PARA EL FRONTEND (SPA - Single Page Application) ---
+// Esta ruta es importante para aplicaciones de una sola página.
+// Si una solicitud del navegador no coincide con ninguna de las rutas de API definidas arriba,
+// Express enviará el 'index.html' de tu frontend. Esto permite que las rutas de la URL
+// (ej. /login, /dashboard) sean manejadas por el JavaScript de tu frontend (script.js).
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Listener para el botón "Seguir sin cuenta" del formulario de login
-document.getElementById('guest-login-btn').addEventListener('click', function() {
-    localStorage.setItem('logueado', 'si');
-    localStorage.setItem('correo_actual', 'invitado@temp.com');
-    localStorage.setItem('nombre_actual', 'Invitado');
-    localStorage.setItem('apellido_actual', '');
-    localStorage.setItem('rol_actual', 'invitado');
-    localStorage.removeItem('token'); // Asegurarse de que no haya token para invitados
-    localStorage.removeItem('user'); // Limpiar objeto user para invitados
-
-    mostrarBienvenida('Invitado');
-    setTimeout(() => {
-        updateUI();
-    }, 2500);
-});
-
-// Listener para el botón "Seguir sin cuenta" del formulario de registro
-document.getElementById('guest-login-btn-register').addEventListener('click', function() {
-    localStorage.setItem('logueado', 'si');
-    localStorage.setItem('correo_actual', 'invitado@temp.com');
-    localStorage.setItem('nombre_actual', 'Invitado');
-    localStorage.setItem('apellido_actual', '');
-    localStorage.setItem('rol_actual', 'invitado');
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-
-    mostrarBienvenida('Invitado');
-    setTimeout(() => {
-        updateUI();
-    }, 2500);
-});
-
-// Carga inicial y listeners
-document.addEventListener('DOMContentLoaded', updateUI);
-window.addEventListener('resize', showUserAvatar);
-
-// Cierra el modal de perfil si se hace clic fuera de él
-document.getElementById('perfil-modal-bg').addEventListener('click', function(e) {
-    if (e.target === this) {
-        closePerfilModal();
-    }
+// --- INICIO DEL SERVIDOR ---
+// El servidor Express comienza a escuchar en el puerto configurado.
+app.listen(port, () => {
+    console.log(`Servidor fullstack corriendo en el puerto ${port}`);
 });
