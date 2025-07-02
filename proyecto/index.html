@@ -1,732 +1,101 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Acceso | IT Essentials</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        html, body { height: 100%; }
-        body { margin: 0; font-family: Arial, sans-serif; min-height: 100vh; background: linear-gradient(135deg, #e0e7ef 0%, #f8fafc 100%);}
-        .sidebar { width: 0; min-height: 100vh; position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none;}
-        .menu-icon { margin-top: 22px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; z-index: 201; position: fixed; left: 16px; top: 22px; pointer-events: auto;}
-        .bar { width: 28px; height: 4px; background: #fff; border-radius: 2px; transition: background 0.2s;}
-        .menu-icon:hover .bar { background: #ffcc00;}
-        .menu-list { position: fixed; left: 0; top: 0; height: 100vh; width: 220px; background: linear-gradient(135deg, #002147 85%, #003366 100%); box-shadow: 2px 0 16px rgba(0,0,0,0.18); display: flex; flex-direction: column; align-items: flex-start; padding-top: 80px; padding-bottom: 20px; gap: 8px; border-top-right-radius: 18px; border-bottom-right-radius: 18px; transform: translateX(-100%); transition: transform 0.3s cubic-bezier(.77,0,.18,1); z-index: 300; pointer-events: none;}
-        .menu-list.show { transform: translateX(0); pointer-events: auto;}
-        .menu-list a { background: none; border: none; color: #fff; padding: 12px 32px 12px 24px; text-align: left; width: 100%; font-size: 1.1em; cursor: pointer; border-radius: 8px; display: flex; align-items: center; gap: 10px; text-decoration: none; transition: background 0.2s, color 0.2s, transform 0.15s;}
-        .menu-list a:hover { background: #ffcc00; color: #002147; transform: translateX(6px) scale(1.04);}
-        .menu-list .icon { font-size: 1.2em; margin-right: 6px;}
-        .main-content { width: 100%; min-height: 100vh; }
-        header { background: #002147; color: white; padding: 20px 0 20px 0; display: flex; align-items: center; justify-content: center; gap: 16px; position: relative; z-index: 5; width: 100vw; left: 0;}
-        header img { height: 60px;}
-        header span { font-size: 2em; font-weight: bold; letter-spacing: 2px;}
-        .user-circle { /* Eliminado .user-photo */
-            position: absolute;
-            right: 32px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 44px;
-            height: 44px;
-            background: #ffcc00;
-            color: #002147;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 1.3em;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.10);
-            border: 2px solid #fff;
-            z-index: 10;
-            letter-spacing: 1px;
-            cursor: pointer;
-            object-fit: cover;
-            overflow: hidden;
-        }
-        .user-circle:hover { background: #ffe066; } /* Eliminado .user-photo:hover */
-        /* Eliminado .user-photo { background: #fff; } */
-        .acceso-container { margin: 80px auto 0 auto; max-width: 340px; background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.10); padding: 32px 24px; text-align: center;}
-        .acceso-container h2 { color: #002147; margin-bottom: 18px;}
-        .acceso-container input[type="text"], .acceso-container input[type="password"], .acceso-container input[type="email"] { width: 90%; padding: 10px; margin: 8px 0; border-radius: 6px; border: 1px solid #bbb; font-size: 1em;}
-        .acceso-container button { background: #002147; color: #fff; border: none; padding: 10px 32px; border-radius: 8px; font-size: 1.1em; cursor: pointer; margin-top: 12px;}
-        .acceso-container button:hover { background: #ffcc00; color: #002147;}
-        .acceso-error { color: #c00; margin-top: 10px; font-size: 1em;}
-        .acceso-success { color: #080; margin-top: 10px; font-size: 1em;}
-        .acceso-switch { margin-top: 18px; color: #002147; cursor: pointer; text-decoration: underline; background: none; border: none; font-size: 1em;}
-        .acceso-guest-btn {
-            margin-top: 10px;
-            background: none;
-            border: 1px solid #002147;
-            color: #002147;
-            padding: 8px 24px;
-            border-radius: 8px;
-            font-size: 0.95em;
-            cursor: pointer;
-            transition: background 0.2s, color 0.2s, border-color 0.2s;
-        }
-        .acceso-guest-btn:hover {
-            background: #e6e6e6;
-            color: #001030;
-            border-color: #001030;
-        }
-
-        .inicio-content { margin: 40px auto 0 auto; max-width: 600px; background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.10); padding: 32px 24px; text-align: center;}
-        .inicio-content h2 { color: #002147; margin: 0 0 16px 0; font-size: 2em; font-weight: bold; letter-spacing: 1px;}
-        .inicio-content p { color: #222; font-size: 1.1em;}
-        /* Modal perfil */
-        .modal-bg {
-            display: none;
-            position: fixed;
-            z-index: 9999;
-            left: 0; top: 0; width: 100vw; height: 100vh;
-            background: rgba(0,0,0,0.25);
-            align-items: center;
-            justify-content: center;
-        }
-        .modal-bg.show { display: flex; }
-        .modal-perfil {
-            background: #fff;
-            border-radius: 16px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.18);
-            padding: 32px 32px 24px 32px;
-            min-width: 260px;
-            max-width: 90vw;
-            text-align: center;
-            position: relative;
-        }
-        .modal-perfil .user-circle { /* Eliminado .user-photo */
-            position: static;
-            margin: 0 auto 12px auto;
-            width: 60px; height: 60px; font-size: 2em;
-            border: 3px solid #002147;
-        }
-        /* Eliminado .modal-perfil .user-photo { background: #fff; } */
-        .modal-perfil h3 { margin: 0 0 8px 0; color: #002147;}
-        .modal-perfil p { color: #222; margin: 0 0 8px 0;}
-        .close-modal {
-            position: absolute;
-            top: 10px; right: 16px;
-            background: none; border: none; font-size: 1.5em; color: #888; cursor: pointer;
-        }
-        .close-modal:hover { color: #002147; }
-        /* Botón cerrar sesión */
-        .btn-cerrar-sesion {
-            background: #002147;
-            color: #fff;
-            border: none;
-            padding: 10px 32px;
-            border-radius: 8px;
-            font-size: 1.1em;
-            cursor: pointer;
-            margin-top: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.10);
-            transition: background 0.2s, color 0.2s, transform 0.15s;
-            font-weight: bold;
-            letter-spacing: 1px;
-        }
-        .btn-cerrar-sesion:hover {
-            background: #ffcc00;
-            color: #002147;
-            transform: scale(1.04);
-        }
-        /* Eliminado .inputfile y .inputfile + label */
-        
-        /* Mensaje Bienvenida pantalla completa con animación de derecha a izquierda */
-        .bienvenido-full {
-            position: fixed;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            background: #fff;
-            color: #002147;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 3em;
-            font-weight: bold;
-            letter-spacing: 2px;
-            z-index: 99999;
-            opacity: 0;
-            pointer-events: none;
-            text-align: center;
-            overflow: hidden;
-        }
-        .bienvenido-full.show {
-            opacity: 1;
-            pointer-events: auto;
-            animation: fadeInBg 0.5s cubic-bezier(.77,0,.18,1);
-        }
-        .bienvenido-full .bienvenido-text {
-            display: inline-block;
-            transform: translateX(100vw);
-            opacity: 0;
-            animation: slideInRight 1s cubic-bezier(.77,0,.18,1) forwards;
-        }
-        @keyframes slideInRight {
-            0% { transform: translateX(100vw); opacity: 0;}
-            60% { opacity: 1;}
-            100% { transform: translateX(0); opacity: 1;}
-        }
-        @keyframes fadeInBg {
-            0% { opacity: 0;}
-            100% { opacity: 1;}
-        }
-        /* Tabla usuarios admin */
-        .usuarios-content {
-            margin: 40px auto 0 auto;
-            max-width: 700px;
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.10);
-            padding: 32px 24px;
-            text-align: center;
-        }
-        .usuarios-content h2 {
-            color: #002147;
-            margin-bottom: 18px;
-        }
-        .usuarios-content table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        .usuarios-content th, .usuarios-content td {
-            border-bottom: 1px solid #ccc;
-            padding: 6px;
-            font-size: 1em;
-            text-align: left;
-        }
-        .usuarios-content th {
-            background: #f4f6fa;
-            color: #002147;
-        }
-        .usuarios-content tr:last-child td {
-            border-bottom: none;
-        }
-        /* Estilo para el botón de eliminar usuario */
-        .delete-user-btn {
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 4px 8px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.85em;
-            transition: background 0.2s ease;
-            margin-left: 5px;
-        }
-        .delete-user-btn:hover {
-            background: #c0392b;
-        }
-        /* Eliminado estilos para avatares en la tabla de usuarios (.user-table-photo, .user-table-initials) */
-
-        @media (max-width: 600px) {
-            header { flex-direction: column; gap: 8px; padding: 16px 0;}
-            header img { height: 40px;}
-            header span { font-size: 1.2em;}
-            .acceso-container, .inicio-content, .usuarios-content { max-width: 98vw; padding: 16px 2vw;}
-            .user-circle { right: 12px; width: 36px; height: 36px; font-size: 1em;} /* Eliminado .user-photo */
-            .modal-perfil .user-circle { width: 44px; height: 44px; font-size: 1.2em;} /* Eliminado .user-photo */
-            .menu-list { width: 80vw; min-width: 140px;}
-            .bienvenido-full { font-size: 1.5em; padding: 0 10px;}
-            /* Ajustes para la tabla en móviles */
-            .usuarios-content th, .usuarios-content td {
-                font-size: 0.85em;
-                padding: 4px;
-            }
-            .usuarios-content table {
-                overflow-x: auto;
-                display: block;
-                white-space: nowrap;
-            }
-        }
-    </style>
+    <meta charset="UTF-8">
+    <title>Acceso | IT Essentials</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="sidebar" id="sidebar-section" style="display:none;">
-        <div class="menu-icon" onclick="toggleMenu()">
-            <div class="bar"></div>
-            <div class="bar"></div>
-            <div class="bar"></div>
-        </div>
-        <nav id="menu-list" class="menu-list">
-            <a href="/index.html"><span class="icon">🏠</span>Inicio</a>
-            <a href="/curso1.html"><span class="icon">📘</span>Curso 1</a>
-            <a href="/curso2.html"><span class="icon">📗</span>Curso 2</a>
-            <a href="/curso3.html"><span class="icon">📙</span>Curso 3</a>
-            <a href="/curso4.html"><span class="icon">📕</span>Curso 4</a>
-            <a href="/curso5.html"><span class="icon">💻</span>Curso 5</a>
-            <a href="/curso6.html"><span class="icon">🖥️</span>Curso 6</a>
-            <a href="/curso7.html"><span class="icon">📝</span>Curso 7</a>
-            <a href="/curso8.html"><span class="icon">🔧</span>Curso 8</a>
-            <a href="/curso9.html"><span class="icon">🔌</span>Curso 9</a>
-            <a href="/curso10.html"><span class="icon">🔒</span>Curso 10</a>
-            <a href="#" id="admin-dashboard-link" style="display:none;"><span class="icon">⚙️</span>Administración</a>
-        </nav>
-    </div>
-    <div class="main-content">
-        <header>
-            <img src="/img/kinal-logo-2.png" alt="Logo Kinal">
-            <span>FUNDACION KINAL</span>
-            <div id="user-avatar-container"></div>
-        </header>
-        <div id="bienvenido-full" class="bienvenido-full"></div>
-        <div class="modal-bg" id="perfil-modal-bg">
-            <div class="modal-perfil">
-                <button class="close-modal" onclick="closePerfilModal()">&times;</button>
-                <div id="perfil-avatar-container"></div>
-                <h3>Mi Perfil</h3>
-                <p id="perfil-nombre"></p>
-                <p id="perfil-apellido"></p>
-                <p id="perfil-usuario"></p>
-                                                <button class="btn-cerrar-sesion" onclick="logout()" style="margin-top:10px;">Cerrar sesión</button>
-            </div>
-        </div>
-        <section class="acceso-container" id="acceso-section">
-            <form id="login-form" autocomplete="off">
-                <h2>Iniciar Sesión</h2>
-                <input type="email" name="email" placeholder="Email" required><br>
-                <input type="password" name="clave" placeholder="Contraseña" required><br>
-                <button type="submit">Entrar</button>
-                <div class="acceso-error" id="login-error"></div>
-                <button type="button" class="acceso-switch" id="show-register">¿No tienes cuenta? Regístrate</button>
-                <button type="button" class="acceso-guest-btn" id="guest-login-btn">Seguir sin cuenta</button>
-            </form>
-            <form id="register-form" autocomplete="off" style="display:none;">
-                <h2>Registrarse</h2>
-                <input type="text" name="nombre" placeholder="Nombre" required><br>
-                <input type="text" name="apellido" placeholder="Apellido" required><br>
-                <input type="email" name="email" placeholder="Email" required><br>
-                <input type="password" name="clave" placeholder="Contraseña" required><br>
-                <input type="password" name="clave2" placeholder="Repetir Contraseña" required><br>
-                <button type="submit">Registrarse</button>
-                <div class="acceso-error" id="register-error"></div>
-                <div class="acceso-success" id="register-success"></div>
-                <button type="button" class="acceso-switch" id="show-login">¿Ya tienes cuenta? Inicia sesión</button>
-                <button type="button" class="acceso-guest-btn" id="guest-login-btn-register">Seguir sin cuenta</button>
-            </form>
-        </section>
-        <section class="inicio-content" id="main-section" style="display:none;">
-            <h2>Bienvenido a IT Essentials</h2>
-            <p>
-                Selecciona un curso en el menú lateral para comenzar.<br>
-                Aquí puedes colocar una breve descripción de la plataforma o instrucciones generales.
-            </p>
-            <button class="btn-cerrar-sesion" onclick="logout()" style="margin-top:20px;">Cerrar sesión</button>
-        </section>
-        <section class="usuarios-content" id="usuarios-section" style="display:none;">
-            <h2>Usuarios registrados</h2>
-            <table id="usuarios-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Email</th>
-                        <th>Nombre</th>
-                        <th>Apellido</th>
-                        <th>Rol</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    </tbody>
-            </table>
-        </section>
-    </div>
-    <script>
-        // --- Menú lateral ---
-        function toggleMenu() {
-            const menu = document.getElementById('menu-list');
-            menu.classList.toggle('show');
-        }
-        document.addEventListener('click', function(e) {
-            const menu = document.getElementById('menu-list');
-            const icon = document.querySelector('.menu-icon');
-            if (e.target.closest('.menu-list a')) return;
-            if (!menu.contains(e.target) && !icon.contains(e.target)) {
-                menu.classList.remove('show');
-            }
-        });
-        document.addEventListener('DOMContentLoaded', function() {
-            const menu = document.getElementById('menu-list');
-            const links = menu.querySelectorAll('a');
-            function updateLinks() {
-                if (menu.classList.contains('show')) {
-                    links.forEach(a => a.tabIndex = 0);
-                } else {
-                    links.forEach(a => a.tabIndex = -1);
-                }
-            }
-            updateLinks();
-            const observer = new MutationObserver(updateLinks);
-            observer.observe(menu, { attributes: true, attributeFilter: ['class'] });
-        });
-
-        // Utilidades
-        function getInitials(nombre, apellido) {
-            if (!nombre && !apellido) return "?";
-            let initials = "";
-            if (nombre) initials += nombre[0];
-            if (apellido) initials += apellido[0];
-            return initials.toUpperCase();
-        }
-
-        // Función renderAvatar mejorada para reutilización (simplificada sin 'foto')
-        function renderAvatar(containerElement, nombre, apellido, size, className, clickHandler = null) {
-            if (!containerElement) {
-                console.warn(`Contenedor '${containerElement}' no encontrado.`);
-                return;
-            }
-            containerElement.innerHTML = '';
-            
-            let element = document.createElement('div');
-            element.className = className + ' user-circle'; // Siempre user-circle
-            element.textContent = getInitials(nombre, apellido);
-            
-            element.style.width = element.style.height = size + 'px';
-            if (clickHandler) element.onclick = clickHandler;
-            
-            containerElement.appendChild(element);
-        }
-
-        // Modificación de showUserAvatar para usar la nueva renderAvatar (sin 'foto')
-        function showUserAvatar() {
-            const nombre = localStorage.getItem('nombre_actual') || '';
-            const apellido = localStorage.getItem('apellido_actual') || '';
-            const userAvatarContainer = document.getElementById('user-avatar-container');
-
-            if (localStorage.getItem('correo_actual') !== 'invitado@temp.com') {
-                renderAvatar(userAvatarContainer, nombre, apellido, window.innerWidth < 600 ? 36 : 44, 'user-circle-header', showPerfilModal);
-            } else {
-                if (userAvatarContainer) userAvatarContainer.innerHTML = '';
-            }
-        }
-
-        function showPerfilModal() {
-            if (localStorage.getItem('correo_actual') === 'invitado@temp.com') {
-                return;
-            }
-            const correo = localStorage.getItem('correo_actual') || '';
-            const nombre = localStorage.getItem('nombre_actual') || '';
-            const apellido = localStorage.getItem('apellido_actual') || '';
-            const perfilAvatarContainer = document.getElementById('perfil-avatar-container');
-
-            renderAvatar(perfilAvatarContainer, nombre, apellido, window.innerWidth < 600 ? 44 : 60, 'user-circle-modal');
-            
-            document.getElementById('perfil-nombre').textContent = "Nombre: " + (nombre || 'N/A');
-            document.getElementById('perfil-apellido').textContent = "Apellido: " + (apellido || 'N/A');
-            document.getElementById('perfil-usuario').textContent = "Correo: " + correo;
-            document.getElementById('perfil-modal-bg').classList.add('show');
-        }
-        function closePerfilModal() {
-            const modal = document.getElementById('perfil-modal-bg');
-            if (modal) modal.classList.remove('show');
-        }
-
-        function mostrarBienvenida(nombre) {
-            const msg = document.getElementById('bienvenido-full');
-            if (!msg) return;
-            msg.innerHTML = `<span class="bienvenido-text">BIENVENIDO ${nombre}</span>`;
-            msg.classList.add('show');
-            setTimeout(() => {
-                msg.classList.remove('show');
-            }, 2500);
-        }
-
-        // *** FUNCIONES QUE INTERACTÚAN CON EL BACKEND ***
-
-        const API_BASE_URL = 'https://proyectoexpokinal.onrender.com';
-
-        // Nueva función para eliminar usuario
-        async function deleteUser(userId) {
-            if (!confirm('¿Estás seguro de que quieres eliminar este usuario?')) {
-                return;
-            }
-
-            const token = localStorage.getItem('token');
-            const currentUserEmail = localStorage.getItem('correo_actual');
-            const currentUserRole = localStorage.getItem('rol_actual');
-
-            if (!token || currentUserEmail !== 'admin@admin.com' || currentUserRole !== 'admin') {
-                alert('No tienes permisos para eliminar usuarios.');
-                return;
-            }
-
-            // Evitar que el administrador se elimine a sí mismo
-            const currentUserObj = JSON.parse(localStorage.getItem('user'));
-            if (currentUserObj && currentUserObj.id === userId) {
-                alert('No puedes eliminar tu propia cuenta de administrador.');
-                return;
-            }
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                if (response.ok) {
-                    alert('Usuario eliminado con éxito.');
-                    cargarUsuariosDesdeBackend(); // Recargar la tabla después de eliminar
-                } else {
-                    const errorData = await response.json();
-                    alert('Error al eliminar usuario: ' + (errorData.message || 'Desconocido'));
-                }
-            } catch (error) {
-                console.error('Error al conectar con el servidor para eliminar usuario:', error);
-                alert('Error de conexión al intentar eliminar usuario.');
-            }
-        }
-
-
-        async function cargarUsuariosDesdeBackend() {
-            const tbody = document.querySelector('#usuarios-table tbody');
-            if (!tbody) return;
-
-            tbody.innerHTML = '<tr><td colspan="6">Cargando usuarios...</td></tr>'; // Actualizado a 6 columnas
-            try {
-                const token = localStorage.getItem('token');
-                const userRole = localStorage.getItem('rol_actual');
-                
-                if (!token || userRole !== 'admin') {
-                    tbody.innerHTML = '<tr><td colspan="6">Acceso denegado. No tienes permisos de administrador.</td></tr>';
-                    return;
-                }
-
-                const response = await fetch(`${API_BASE_URL}/users`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                if (!response.ok) {
-                    if (response.status === 403) {
-                        tbody.innerHTML = '<tr><td colspan="6">Acceso denegado. No tienes permisos de administrador.</td></tr>';
-                        return;
-                    }
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const usuarios = await response.json();
-                tbody.innerHTML = '';
-
-                if (usuarios.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6">No hay usuarios registrados.</td></tr>';
-                } else {
-                    usuarios.forEach(usuario => {
-                        const tr = document.createElement('tr');
-                        const currentUserObj = JSON.parse(localStorage.getItem('user'));
-                        const isCurrentUserAdmin = (currentUserObj && currentUserObj.id === usuario.id && usuario.rol === 'admin');
-
-                        tr.innerHTML = `<td>${usuario.id}</td>
-                                            <td>${usuario.correo}</td>
-                                            <td>${usuario.nombre || 'N/A'}</td>
-                                            <td>${usuario.apellido || 'N/A'}</td>
-                                            <td>${usuario.rol || 'N/A'}</td>
-                                            <td>
-                                                ${!isCurrentUserAdmin ? `<button class="delete-user-btn" onclick="deleteUser(${usuario.id})">Eliminar</button>` : ''}
-                                            </td>`;
-                        
-                        tbody.appendChild(tr);
-                    });
-                }
-            } catch (error) {
-                console.error('Error al cargar usuarios desde el backend:', error);
-                tbody.innerHTML = '<tr><td colspan="6">Error al cargar usuarios. Intenta de nuevo más tarde.</td></tr>';
-            }
-        }
-
-        function updateUI() {
-            const accesoSection = document.getElementById('acceso-section');
-            const mainSection = document.getElementById('main-section');
-            const sidebarSection = document.getElementById('sidebar-section');
-            const userAvatarContainer = document.getElementById('user-avatar-container');
-            const usuariosSection = document.getElementById('usuarios-section');
-            const adminDashboardLink = document.getElementById('admin-dashboard-link');
-
-            if (!accesoSection || !mainSection || !sidebarSection || !userAvatarContainer || !usuariosSection || !adminDashboardLink) {
-                console.error("Algunos elementos UI no se encontraron. La interfaz no se actualizará completamente.");
-                return;
-            }
-
-            const isUserLoggedIn = localStorage.getItem('logueado') === 'si';
-            const currentUserEmail = localStorage.getItem('correo_actual');
-            const currentUserRole = localStorage.getItem('rol_actual');
-
-            if (isUserLoggedIn) {
-                accesoSection.style.display = 'none';
-                sidebarSection.style.display = '';
-                showUserAvatar();
-
-                mainSection.style.display = '';
-                usuariosSection.style.display = 'none';
-
-                if (currentUserEmail === 'admin@admin.com' && currentUserRole === 'admin') {
-                    adminDashboardLink.style.display = '';
-                    adminDashboardLink.onclick = async function(e) {
-                        e.preventDefault();
-                        mainSection.style.display = 'none';
-                        usuariosSection.style.display = '';
-                        await cargarUsuariosDesdeBackend();
-                        toggleMenu();
-                    };
-                } else {
-                    adminDashboardLink.style.display = 'none';
-                }
-
-            } else {
-                accesoSection.style.display = '';
-                mainSection.style.display = 'none';
-                sidebarSection.style.display = 'none';
-                userAvatarContainer.innerHTML = '';
-                usuariosSection.style.display = 'none';
-                adminDashboardLink.style.display = 'none';
-                closePerfilModal();
-            }
-        }
-
-
-        // --- Función para cerrar sesión ---
-        function logout() {
-            localStorage.clear();
-            
-            const menu = document.getElementById('menu-list');
-            if (menu) menu.classList.remove('show');
-            
-            updateUI();
-        }
-
-        // --- Manejo de Login/Registro ---
-        document.getElementById('show-register').addEventListener('click', function() {
-            document.getElementById('login-form').style.display = 'none';
-            document.getElementById('register-form').style.display = 'block';
-            document.getElementById('login-error').textContent = '';
-        });
-
-        document.getElementById('show-login').addEventListener('click', function() {
-            document.getElementById('login-form').style.display = 'block';
-            document.getElementById('register-form').style.display = 'none';
-            document.getElementById('register-error').textContent = '';
-            document.getElementById('register-success').textContent = '';
-        });
-
-        document.getElementById('login-form').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const email = this.elements.email.value;
-            const clave = this.elements.clave.value;
-            const errorDiv = document.getElementById('login-error');
-            errorDiv.textContent = '';
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/login`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ email, clave })
-                });
-
-                const data = await response.json();
-                if (response.ok) {
-                    localStorage.setItem('token', data.token);
-                    localStorage.setItem('logueado', 'si');
-                    localStorage.setItem('correo_actual', data.user.correo);
-                    localStorage.setItem('nombre_actual', data.user.nombre);
-                    localStorage.setItem('apellido_actual', data.user.apellido);
-                    localStorage.setItem('rol_actual', data.user.rol);
-                    localStorage.setItem('user', JSON.stringify(data.user)); // Guarda todo el objeto user
-
-                    mostrarBienvenida(data.user.nombre);
-                    setTimeout(() => {
-                        updateUI();
-                    }, 2500); // Espera a que termine la animación
-                } else {
-                    errorDiv.textContent = data.message || 'Error en el login';
-                }
-            } catch (error) {
-                console.error('Error de conexión:', error);
-                errorDiv.textContent = 'Error de conexión con el servidor.';
-            }
-        });
-
-        document.getElementById('register-form').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const nombre = this.elements.nombre.value;
-            const apellido = this.elements.apellido.value;
-            const email = this.elements.email.value;
-            const clave = this.elements.clave.value;
-            const clave2 = this.elements.clave2.value;
-            const errorDiv = document.getElementById('register-error');
-            const successDiv = document.getElementById('register-success');
-            errorDiv.textContent = '';
-            successDiv.textContent = '';
-
-            if (clave !== clave2) {
-                errorDiv.textContent = 'Las contraseñas no coinciden.';
-                return;
-            }
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/register`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ nombre, apellido, email, clave })
-                });
-
-                const data = await response.json();
-                if (response.ok) {
-                    successDiv.textContent = '¡Registro exitoso! Ahora puedes iniciar sesión.';
-                    this.reset();
-                    setTimeout(() => {
-                        document.getElementById('show-login').click();
-                    }, 2000);
-                } else {
-                    errorDiv.textContent = data.message || 'Error en el registro';
-                }
-            } catch (error) {
-                console.error('Error de conexión:', error);
-                errorDiv.textContent = 'Error de conexión con el servidor.';
-            }
-        });
-
-        // Login de invitado
-        document.getElementById('guest-login-btn').addEventListener('click', guestLogin);
-        document.getElementById('guest-login-btn-register').addEventListener('click', guestLogin);
-
-        function guestLogin() {
-            localStorage.setItem('logueado', 'si');
-            localStorage.setItem('correo_actual', 'invitado@temp.com');
-            localStorage.setItem('nombre_actual', 'Invitado');
-            localStorage.setItem('apellido_actual', '');
-            localStorage.setItem('rol_actual', 'estudiante');
-            // localStorage.setItem('foto_actual', ''); // Ya no se necesita
-            localStorage.setItem('token', 'guest_token_placeholder');
-            localStorage.setItem('user', JSON.stringify({
-                id: 'guest',
-                correo: 'invitado@temp.com',
-                nombre: 'Invitado',
-                apellido: '',
-                rol: 'estudiante'
-                // foto: '' // Ya no se necesita
-            }));
-            mostrarBienvenida('Invitado');
-            setTimeout(() => {
-                updateUI();
-            }, 2500);
-        }
-
-        // Eliminado: Manejo de la subida de foto de perfil
-
-        // Carga inicial y listeners
-        document.addEventListener('DOMContentLoaded', updateUI);
-        window.addEventListener('resize', showUserAvatar);
-        
-        // Cierra el modal de perfil si se hace clic fuera de él
-        document.getElementById('perfil-modal-bg').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closePerfilModal();
-            }
-        });
-
-    </script>
+    <div class="sidebar" id="sidebar-section" style="display:none;">
+        <div class="menu-icon" onclick="toggleMenu()">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+        </div>
+        <nav id="menu-list" class="menu-list">
+            <a href="/index.html"><span class="icon">🏠</span>Inicio</a>
+            <a href="/curso1.html"><span class="icon">📘</span>Curso 1</a>
+            <a href="/curso2.html"><span class="icon">📗</span>Curso 2</a>
+            <a href="/curso3.html"><span class="icon">📙</span>Curso 3</a>
+            <a href="/curso4.html"><span class="icon">📕</span>Curso 4</a>
+            <a href="/curso5.html"><span class="icon">💻</span>Curso 5</a>
+            <a href="/curso6.html"><span class="icon">🖥️</span>Curso 6</a>
+            <a href="/curso7.html"><span class="icon">📝</span>Curso 7</a>
+            <a href="/curso8.html"><span class="icon">🔧</span>Curso 8</a>
+            <a href="/curso9.html"><span class="icon">🔌</span>Curso 9</a>
+            <a href="/curso10.html"><span class="icon">🔒</span>Curso 10</a>
+            <a href="#" id="admin-dashboard-link" style="display:none;"><span class="icon">⚙️</span>Administración</a>
+        </nav>
+    </div>
+    <div class="main-content">
+        <header>
+            <img src="/img/kinal-logo-2.png" alt="Logo Kinal">
+            <span>FUNDACION KINAL</span>
+            <div id="user-avatar-container"></div>
+        </header>
+        <div id="bienvenido-full" class="bienvenido-full"></div>
+        <div class="modal-bg" id="perfil-modal-bg">
+            <div class="modal-perfil">
+                <button class="close-modal" onclick="closePerfilModal()">&times;</button>
+                <div id="perfil-avatar-container"></div>
+                <h3>Mi Perfil</h3>
+                <p id="perfil-nombre"></p>
+                <p id="perfil-apellido"></p>
+                <p id="perfil-usuario"></p>
+                <button class="btn-cerrar-sesion" onclick="logout()" style="margin-top:10px;">Cerrar sesión</button>
+            </div>
+        </div>
+        <section class="acceso-container" id="acceso-section">
+            <form id="login-form" autocomplete="off">
+                <h2>Iniciar Sesión</h2>
+                <input type="email" name="email" placeholder="Email" required><br>
+                <input type="password" name="clave" placeholder="Contraseña" required><br>
+                <button type="submit">Entrar</button>
+                <div class="acceso-error" id="login-error"></div>
+                <button type="button" class="acceso-switch" id="show-register">¿No tienes cuenta? Regístrate</button>
+                <button type="button" class="acceso-guest-btn" id="guest-login-btn">Seguir sin cuenta</button>
+            </form>
+            <form id="register-form" autocomplete="off" style="display:none;">
+                <h2>Registrarse</h2>
+                <input type="text" name="nombre" placeholder="Nombre" required><br>
+                <input type="text" name="apellido" placeholder="Apellido" required><br>
+                <input type="email" name="email" placeholder="Email" required><br>
+                <input type="password" name="clave" placeholder="Contraseña" required><br>
+                <input type="password" name="clave2" placeholder="Repetir Contraseña" required><br>
+                <button type="submit">Registrarse</button>
+                <div class="acceso-error" id="register-error"></div>
+                <div class="acceso-success" id="register-success"></div>
+                <button type="button" class="acceso-switch" id="show-login">¿Ya tienes cuenta? Inicia sesión</button>
+                <button type="button" class="acceso-guest-btn" id="guest-login-btn-register">Seguir sin cuenta</button>
+            </form>
+        </section>
+        <section class="inicio-content" id="main-section" style="display:none;">
+            <h2>Bienvenido a IT Essentials</h2>
+            <p>
+                Selecciona un curso en el menú lateral para comenzar.<br>
+                Aquí puedes colocar una breve descripción de la plataforma o instrucciones generales.
+            </p>
+            <button class="btn-cerrar-sesion" onclick="logout()" style="margin-top:20px;">Cerrar sesión</button>
+        </section>
+        <section class="usuarios-content" id="usuarios-section" style="display:none;">
+            <h2>Usuarios registrados</h2>
+            <table id="usuarios-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Email</th>
+                        <th>Nombre</th>
+                        <th>Apellido</th>
+                        <th>Rol</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </section>
+    </div>
+    <script src="script.js"></script>
 </body>
 </html>

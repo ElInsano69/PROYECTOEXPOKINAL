@@ -1,17 +1,17 @@
 {
-  "name": "proyecto-it-essentials",
+  "name": "proyecto-expokinal-backend",
   "version": "1.0.0",
-  "description": "Frontend y Backend para IT Essentials",
+  "description": "Backend para Proyecto Expokinal",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
     "express": "^4.19.2",
     "cors": "^2.8.5",
-    "pg": "^8.12.0"  // Sugerencia: Usar una versión específica como ^8.12.0
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+    "pg": "^8.12.0"
+  }
 }

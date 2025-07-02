@@ -1,0 +1,233 @@
+html, body { height: 100%; }
+body { margin: 0; font-family: Arial, sans-serif; min-height: 100vh; background: linear-gradient(135deg, #e0e7ef 0%, #f8fafc 100%);}
+.sidebar { width: 0; min-height: 100vh; position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none;}
+.menu-icon { margin-top: 22px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; z-index: 201; position: fixed; left: 16px; top: 22px; pointer-events: auto;}
+.bar { width: 28px; height: 4px; background: #fff; border-radius: 2px; transition: background 0.2s;}
+.menu-icon:hover .bar { background: #ffcc00;}
+.menu-list { position: fixed; left: 0; top: 0; height: 100vh; width: 220px; background: linear-gradient(135deg, #002147 85%, #003366 100%); box-shadow: 2px 0 16px rgba(0,0,0,0.18); display: flex; flex-direction: column; align-items: flex-start; padding-top: 80px; padding-bottom: 20px; gap: 8px; border-top-right-radius: 18px; border-bottom-right-radius: 18px; transform: translateX(-100%); transition: transform 0.3s cubic-bezier(.77,0,.18,1); z-index: 300; pointer-events: none;}
+.menu-list.show { transform: translateX(0); pointer-events: auto;}
+.menu-list a { background: none; border: none; color: #fff; padding: 12px 32px 12px 24px; text-align: left; width: 100%; font-size: 1.1em; cursor: pointer; border-radius: 8px; display: flex; align-items: center; gap: 10px; text-decoration: none; transition: background 0.2s, color 0.2s, transform 0.15s;}
+.menu-list a:hover { background: #ffcc00; color: #002147; transform: translateX(6px) scale(1.04);}
+.menu-list .icon { font-size: 1.2em; margin-right: 6px;}
+.main-content { width: 100%; min-height: 100vh; }
+header { background: #002147; color: white; padding: 20px 0 20px 0; display: flex; align-items: center; justify-content: center; gap: 16px; position: relative; z-index: 5; width: 100vw; left: 0;}
+header img { height: 60px;}
+header span { font-size: 2em; font-weight: bold; letter-spacing: 2px;}
+.user-circle { /* Eliminado .user-photo */
+    position: absolute;
+    right: 32px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 44px;
+    background: #ffcc00;
+    color: #002147;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.3em;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    border: 2px solid #fff;
+    z-index: 10;
+    letter-spacing: 1px;
+    cursor: pointer;
+    object-fit: cover;
+    overflow: hidden;
+}
+.user-circle:hover { background: #ffe066; } /* Eliminado .user-photo:hover */
+/* Eliminado .user-photo { background: #fff; } */
+.acceso-container { margin: 80px auto 0 auto; max-width: 340px; background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.10); padding: 32px 24px; text-align: center;}
+.acceso-container h2 { color: #002147; margin-bottom: 18px;}
+.acceso-container input[type="text"], .acceso-container input[type="password"], .acceso-container input[type="email"] { width: 90%; padding: 10px; margin: 8px 0; border-radius: 6px; border: 1px solid #bbb; font-size: 1em;}
+.acceso-container button { background: #002147; color: #fff; border: none; padding: 10px 32px; border-radius: 8px; font-size: 1.1em; cursor: pointer; margin-top: 12px;}
+.acceso-container button:hover { background: #ffcc00; color: #002147;}
+.acceso-error { color: #c00; margin-top: 10px; font-size: 1em;}
+.acceso-success { color: #080; margin-top: 10px; font-size: 1em;}
+.acceso-switch { margin-top: 18px; color: #002147; cursor: pointer; text-decoration: underline; background: none; border: none; font-size: 1em;}
+.acceso-guest-btn {
+    margin-top: 10px;
+    background: none;
+    border: 1px solid #002147;
+    color: #002147;
+    padding: 8px 24px;
+    border-radius: 8px;
+    font-size: 0.95em;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.acceso-guest-btn:hover {
+    background: #e6e6e6;
+    color: #001030;
+    border-color: #001030;
+}
+
+.inicio-content { margin: 40px auto 0 auto; max-width: 600px; background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.10); padding: 32px 24px; text-align: center;}
+.inicio-content h2 { color: #002147; margin: 0 0 16px 0; font-size: 2em; font-weight: bold; letter-spacing: 1px;}
+.inicio-content p { color: #222; font-size: 1.1em;}
+/* Modal perfil */
+.modal-bg {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    left: 0; top: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.25);
+    align-items: center;
+    justify-content: center;
+}
+.modal-bg.show { display: flex; }
+.modal-perfil {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    padding: 32px 32px 24px 32px;
+    min-width: 260px;
+    max-width: 90vw;
+    text-align: center;
+    position: relative;
+}
+.modal-perfil .user-circle { /* Eliminado .user-photo */
+    position: static;
+    margin: 0 auto 12px auto;
+    width: 60px; height: 60px; font-size: 2em;
+    border: 3px solid #002147;
+}
+/* Eliminado .modal-perfil .user-photo { background: #fff; } */
+.modal-perfil h3 { margin: 0 0 8px 0; color: #002147;}
+.modal-perfil p { color: #222; margin: 0 0 8px 0;}
+.close-modal {
+    position: absolute;
+    top: 10px; right: 16px;
+    background: none; border: none; font-size: 1.5em; color: #888; cursor: pointer;
+}
+.close-modal:hover { color: #002147; }
+/* Botón cerrar sesión */
+.btn-cerrar-sesion {
+    background: #002147;
+    color: #fff;
+    border: none;
+    padding: 10px 32px;
+    border-radius: 8px;
+    font-size: 1.1em;
+    cursor: pointer;
+    margin-top: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    transition: background 0.2s, color 0.2s, transform 0.15s;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+.btn-cerrar-sesion:hover {
+    background: #ffcc00;
+    color: #002147;
+    transform: scale(1.04);
+}
+/* Eliminado .inputfile y .inputfile + label */
+
+/* Mensaje Bienvenida pantalla completa con animación de derecha a izquierda */
+.bienvenido-full {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background: #fff;
+    color: #002147;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3em;
+    font-weight: bold;
+    letter-spacing: 2px;
+    z-index: 99999;
+    opacity: 0;
+    pointer-events: none;
+    text-align: center;
+    overflow: hidden;
+}
+.bienvenido-full.show {
+    opacity: 1;
+    pointer-events: auto;
+    animation: fadeInBg 0.5s cubic-bezier(.77,0,.18,1);
+}
+.bienvenido-full .bienvenido-text {
+    display: inline-block;
+    transform: translateX(100vw);
+    opacity: 0;
+    animation: slideInRight 1s cubic-bezier(.77,0,.18,1) forwards;
+}
+@keyframes slideInRight {
+    0% { transform: translateX(100vw); opacity: 0;}
+    60% { opacity: 1;}
+    100% { transform: translateX(0); opacity: 1;}
+}
+@keyframes fadeInBg {
+    0% { opacity: 0;}
+    100% { opacity: 1;}
+}
+/* Tabla usuarios admin */
+.usuarios-content {
+    margin: 40px auto 0 auto;
+    max-width: 700px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+    padding: 32px 24px;
+    text-align: center;
+}
+.usuarios-content h2 {
+    color: #002147;
+    margin-bottom: 18px;
+}
+.usuarios-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+.usuarios-content th, .usuarios-content td {
+    border-bottom: 1px solid #ccc;
+    padding: 6px;
+    font-size: 1em;
+    text-align: left;
+}
+.usuarios-content th {
+    background: #f4f6fa;
+    color: #002147;
+}
+.usuarios-content tr:last-child td {
+    border-bottom: none;
+}
+/* Estilo para el botón de eliminar usuario */
+.delete-user-btn {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85em;
+    transition: background 0.2s ease;
+    margin-left: 5px;
+}
+.delete-user-btn:hover {
+    background: #c0392b;
+}
+/* Eliminado estilos para avatares en la tabla de usuarios (.user-table-photo, .user-table-initials) */
+
+@media (max-width: 600px) {
+    header { flex-direction: column; gap: 8px; padding: 16px 0;}
+    header img { height: 40px;}
+    header span { font-size: 1.2em;}
+    .acceso-container, .inicio-content, .usuarios-content { max-width: 98vw; padding: 16px 2vw;}
+    .user-circle { right: 12px; width: 36px; height: 36px; font-size: 1em;} /* Eliminado .user-photo */
+    .modal-perfil .user-circle { width: 44px; height: 44px; font-size: 1.2em;} /* Eliminado .user-photo */
+    .menu-list { width: 80vw; min-width: 140px;}
+    .bienvenido-full { font-size: 1.5em; padding: 0 10px;}
+    /* Ajustes para la tabla en móviles */
+    .usuarios-content th, .usuarios-content td {
+        font-size: 0.85em;
+        padding: 4px;
+    }
+    .usuarios-content table {
+        overflow-x: auto;
+        display: block;
+        white-space: nowrap;
+    }
+}
